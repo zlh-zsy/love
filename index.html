@@ -388,6 +388,28 @@
         @media (max-width: 420px) {
             #startOverlay .sub { font-size: 1.2rem; letter-spacing: 2px; }
         }
+
+        /* ===== 加载状态 ===== */
+        .photo-container.loading::after {
+            content: '💕 加载中...';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #7a2a4a;
+            font-size: 1.2rem;
+            background: rgba(255, 240, 245, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 10px 24px;
+            border-radius: 40px;
+            border: 1px solid rgba(255, 200, 210, 0.5);
+            z-index: 2;
+            font-weight: 500;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 20px rgba(180, 60, 100, 0.12);
+            animation: pulse-heart 1.2s infinite;
+        }
     </style>
 </head>
 <body>
@@ -616,16 +638,51 @@
             burstHearts(40);
         }
 
+        // ----- 预加载所有图片 -----
+        function preloadAllImages() {
+            console.log('🔄 开始预加载 ' + TOTAL + ' 张图片...');
+            let loadedCount = 0;
+            for (let i = 0; i < TOTAL; i++) {
+                const img = new Image();
+                img.onload = function() {
+                    loadedCount++;
+                    if (loadedCount === TOTAL) {
+                        console.log('✅ 所有图片预加载完成！');
+                    }
+                };
+                img.onerror = function() {
+                    loadedCount++;
+                    console.warn('⚠️ 图片加载失败: ' + (i + 1) + '.jpg');
+                };
+                img.src = getPhotoUrl(i);
+            }
+        }
+
         // ----- 照片更新 -----
         function updateDisplay(index) {
             if (index < 0) index = 0;
             if (index >= TOTAL) index = TOTAL - 1;
             currentIndex = index;
 
-            mainPhoto.src = getPhotoUrl(index);
-            mainPhoto.style.animation = 'none';
-            void mainPhoto.offsetHeight;
-            mainPhoto.style.animation = 'fadeIn 0.7s ease';
+            // 显示加载状态
+            photoContainer.classList.add('loading');
+            
+            // 预加载当前图片
+            const img = new Image();
+            img.onload = function() {
+                // 图片加载完成，更新 src
+                mainPhoto.src = getPhotoUrl(index);
+                mainPhoto.style.animation = 'none';
+                void mainPhoto.offsetHeight;
+                mainPhoto.style.animation = 'fadeIn 0.7s ease';
+                photoContainer.classList.remove('loading');
+            };
+            img.onerror = function() {
+                // 加载失败也移除加载状态，显示占位
+                mainPhoto.src = getPhotoUrl(index);
+                photoContainer.classList.remove('loading');
+            };
+            img.src = getPhotoUrl(index);
 
             numberDisplay.textContent = `${index + 1} / ${TOTAL}`;
             quoteText.innerHTML = loveMessages[index] || "你是我最想珍惜的人 💖";
@@ -690,6 +747,10 @@
         // ----- 初始化 -----
         function init() {
             updateDisplay(0);
+            
+            // ===== 预加载所有图片 =====
+            preloadAllImages();
+            
             if (playInterval) {
                 clearInterval(playInterval);
                 playInterval = null;
@@ -725,6 +786,8 @@
 
         mainPhoto.addEventListener('error', function() {
             const parent = this.parentNode;
+            // 检查是否已存在占位，避免重复添加
+            if (parent.querySelector('.placeholder-icon')) return;
             const placeholder = document.createElement('div');
             placeholder.className = 'placeholder-icon';
             placeholder.innerHTML = '<i class="fas fa-heart" style="font-size: 3.5rem; opacity: 0.6;"></i>';
