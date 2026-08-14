@@ -6,6 +6,7 @@
     <title>ZLH 💖 ZSY</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* ... 保持原有 CSS 不变，省略以节省篇幅 ... */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: radial-gradient(circle at 30% 10%, #fce4ec 0%, #f8bbd0 100%);
@@ -449,9 +450,13 @@
 
 <div id="heartContainer"></div>
 
-<!-- 背景音乐 -->
-<audio id="bgMusic" loop preload="auto" crossorigin="anonymous">
+<!-- 背景音乐 - 添加多种格式兼容 -->
+<audio id="bgMusic" loop preload="auto" crossorigin="anonymous" playsinline webkit-playsinline>
+    <!-- 优先使用 MP3 -->
     <source src="https://zlh.zsy.obs.cn-east-3.myhuaweicloud.com/%E6%85%A2%E6%85%A2-%E9%A2%9C%E4%BA%BA%E4%B8%AD.mp3" type="audio/mpeg">
+    <!-- 如果 MP3 无法加载，尝试 M4A 格式（Safari 原生支持更好） -->
+    <source src="https://zlh.zsy.obs.cn-east-3.myhuaweicloud.com/%E6%85%A2%E6%85%A2-%E9%A2%9C%E4%BA%BA%E4%B8%AD.m4a" type="audio/mp4">
+    您的浏览器不支持音频播放
 </audio>
 
 <script>
@@ -548,6 +553,7 @@
         let isMusicPlaying = false;
         let musicReady = false;
         let isStarted = false;
+        let musicErrorCount = 0;
 
         // ----- 爱心特效 -----
         function burstHearts(count = 60) {
@@ -574,40 +580,76 @@
             }
         }
 
-        // ----- 启动（用户点击覆盖层） -----
+        // ----- 启动（用户点击覆盖层） - 针对 iOS 优化 -----
         function startApp() {
             if (isStarted) return;
             isStarted = true;
 
-            // 播放音乐
+            // 1. 首先尝试播放音乐（在用户手势中）
             bgMusic.volume = 0.5;
             bgMusic.loop = true;
-            bgMusic.play().then(() => {
-                musicReady = true;
-                isMusicPlaying = true;
-                musicLabel.textContent = '播放中';
-                console.log('✅ 音乐播放成功');
-            }).catch((error) => {
-                console.warn('⚠️ 音乐播放失败:', error);
-                musicLabel.textContent = '点击播放';
-            });
+            
+            // iOS Safari 需要在用户手势中调用 play()
+            const playPromise = bgMusic.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    musicReady = true;
+                    isMusicPlaying = true;
+                    musicLabel.textContent = '播放中';
+                    console.log('✅ 音乐播放成功 (iOS)');
+                }).catch((error) => {
+                    console.warn('⚠️ 音乐播放失败:', error.message);
+                    musicErrorCount++;
+                    
+                    // 如果是 iOS 的 "NotAllowedError"，尝试静音播放
+                    if (error.name === 'NotAllowedError') {
+                        // iOS 上可以先静音播放，然后取消静音
+                        bgMusic.muted = true;
+                        bgMusic.play().then(() => {
+                            bgMusic.muted = false;
+                            musicReady = true;
+                            isMusicPlaying = true;
+                            musicLabel.textContent = '播放中';
+                            console.log('✅ iOS 静音播放后恢复');
+                        }).catch(() => {});
+                    } else {
+                        musicLabel.textContent = '点击播放';
+                    }
+                });
+            }
 
-            // 隐藏覆盖层
+            // 2. 隐藏覆盖层
             startOverlay.classList.add('hidden');
             
-            // 大量爱心庆祝
+            // 3. 大量爱心庆祝
             setTimeout(() => burstHearts(100), 200);
             setTimeout(() => burstHearts(80), 400);
         }
 
-        // ----- 音乐开关 -----
+        // ----- 音乐开关 (针对 iOS 优化) -----
         function toggleMusic() {
             if (bgMusic.paused) {
-                bgMusic.play().then(() => {
-                    isMusicPlaying = true;
-                    musicReady = true;
-                    musicLabel.textContent = '播放中';
-                }).catch(() => {});
+                // 在用户手势中恢复播放
+                const playPromise = bgMusic.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        isMusicPlaying = true;
+                        musicReady = true;
+                        musicLabel.textContent = '播放中';
+                    }).catch((error) => {
+                        // 如果播放失败，尝试静音播放
+                        if (error.name === 'NotAllowedError') {
+                            bgMusic.muted = true;
+                            bgMusic.play().then(() => {
+                                bgMusic.muted = false;
+                                isMusicPlaying = true;
+                                musicReady = true;
+                                musicLabel.textContent = '播放中';
+                            }).catch(() => {});
+                        }
+                    });
+                }
             } else {
                 bgMusic.pause();
                 isMusicPlaying = false;
