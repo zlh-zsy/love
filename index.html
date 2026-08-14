@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZLH 💖 ZSY</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: radial-gradient(circle at 30% 10%, #fce4ec 0%, #f8bbd0 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Poppins', system-ui, sans-serif;
+            padding: 16px;
+            overflow-x: hidden;
+        }
+        .card {
+            max-width: 660px;
+            width: 100%;
+            background: rgba(255, 240, 245, 0.55);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-radius: 64px 64px 48px 48px;
+            padding: 24px 24px 36px;
+            box-shadow: 0 30px 80px rgba(180, 60, 100, 0.25), 0 8px 32px rgba(0, 0, 0, 0.06);
+            border: 1px solid rgba(255, 200, 210, 0.6);
+            position: relative;
+            z-index: 1;
+        }
+        .header { text-align: center; margin-bottom: 18px; }
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: #7a2a4a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            text-shadow: 0 4px 18px rgba(200, 70, 110, 0.15);
+        }
+        .header h1 i { color: #d63e6b; animation: pulse-heart 1.8s infinite; }
+        .photo-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 8px auto;
+            width: 100%;
+            max-width: 440px;
+            aspect-ratio: 1 / 1;
+        }
+        .photo-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 40px;
+            overflow: hidden;
+            box-shadow: 0 16px 48px rgba(160, 50, 80, 0.25);
+            background: #ffeef2;
+            position: relative;
+            cursor: pointer;
+        }
+        .photo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .photo-badge {
+            position: absolute;
+            bottom: 16px;
+            right: 18px;
+            background: rgba(255, 235, 240, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 6px 22px 8px 22px;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #7a2a4a;
+            border: 1px solid rgba(255, 200, 210, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none;
+            box-shadow: 0 4px 20px rgba(180, 60, 100, 0.12);
+            z-index: 3;
+            white-space: nowrap;
+        }
+        .photo-badge i { color: #d63e6b; }
+        .quote-box {
+            width: 100%;
+            max-width: 520px;
+            margin: 22px auto 0;
+            background: rgba(255, 240, 245, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 60px;
+            padding: 18px 26px;
+            border: 1px solid rgba(255, 200, 210, 0.5);
+            box-shadow: inset 0 2px 20px rgba(255, 200, 220, 0.2);
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: 0.25s;
+        }
+        .quote-box i {
+            color: #d63e6b;
+            font-size: 1.6rem;
+            margin-right: 14px;
+            animation: pulse-heart 1.8s infinite;
+        }
+        .quote-box .quote-text {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #4a1f33;
+            line-height: 1.6;
+            letter-spacing: 0.3px;
+        }
+        .quote-box .quote-text .highlight {
+            background: linear-gradient(120deg, #f7a1b8, #f28b9e);
+            padding: 2px 16px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            margin: 0 4px;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            margin-top: 20px;
+        }
+        .progress-area {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            width: 100%;
+            max-width: 400px;
+        }
+        .progress-area span {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #7a2a4a;
+            min-width: 48px;
+            text-align: center;
+        }
+        .progress-bar {
+            flex: 1;
+            height: 6px;
+            background: rgba(200, 120, 140, 0.25);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #e8436e, #f28b9e);
+            border-radius: 12px;
+            transition: width 0.3s ease;
+        }
+        .btn-group {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .ctrl-btn {
+            background: rgba(255, 235, 240, 0.7);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 200, 210, 0.5);
+            padding: 12px 24px;
+            border-radius: 60px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #7a2a4a;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 6px 20px rgba(160, 60, 90, 0.10);
+        }
+        .ctrl-btn i { color: #d63e6b; font-size: 1.0rem; }
+        .ctrl-btn:hover {
+            background: rgba(255, 220, 230, 0.9);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px rgba(180, 60, 100, 0.2);
+            border-color: #f5a0b5;
+        }
+        .ctrl-btn:active { transform: scale(0.96); }
+        .ctrl-btn.primary {
+            background: #e8436e;
+            border-color: #f27a9a;
+            color: white;
+            box-shadow: 0 8px 28px rgba(220, 60, 100, 0.3);
+        }
+        .ctrl-btn.primary i { color: white; }
+        .ctrl-btn.primary:hover {
+            background: #d63b63;
+            box-shadow: 0 12px 36px rgba(200, 50, 80, 0.4);
+        }
+        .music-btn {
+            background: rgba(255, 235, 240, 0.7);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 200, 210, 0.5);
+            padding: 10px 20px;
+            border-radius: 60px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #7a2a4a;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 6px 20px rgba(160, 60, 90, 0.10);
+        }
+        .music-btn:hover {
+            background: rgba(255, 220, 230, 0.9);
+            transform: translateY(-2px);
+        }
+        .music-btn i { color: #d63e6b; font-size: 1.0rem; }
+        #heartContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+            overflow: hidden;
+        }
+        .floating-heart {
+            position: fixed;
+            pointer-events: none;
+            font-size: 28px;
+            z-index: 9999;
+            opacity: 1;
+            animation: heartPop 0.8s ease-out forwards;
+            text-shadow: 0 0 30px rgba(214, 62, 107, 0.4);
+        }
+        @keyframes heartPop {
+            0% { transform: scale(0.3) rotate(0deg); opacity: 0; }
+            15% { transform: scale(1.1) rotate(10deg); opacity: 1; }
+            30% { transform: scale(1) rotate(-5deg); opacity: 1; }
+            60% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(0.8) rotate(20deg); opacity: 0; }
+        }
+        @media (max-width: 600px) {
+            .card { padding: 16px 14px 28px; border-radius: 40px; }
+            .header h1 { font-size: 1.8rem; }
+            .photo-wrapper { max-width: 100%; }
+            .photo-container { border-radius: 28px; }
+            .quote-box { padding: 14px 18px; min-height: 70px; }
+            .quote-box .quote-text { font-size: 1.0rem; }
+            .ctrl-btn { padding: 10px 18px; font-size: 0.85rem; }
+            .photo-badge { font-size: 0.75rem; padding: 4px 16px; bottom: 12px; right: 14px; }
+        }
+        @media (max-width: 420px) {
+            .header h1 { font-size: 1.5rem; gap: 8px; }
+            .quote-box .quote-text { font-size: 0.9rem; }
+            .ctrl-btn { padding: 8px 14px; font-size: 0.8rem; gap: 6px; }
+            .photo-container { border-radius: 20px; }
+        }
+        @keyframes pulse-heart {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.25); }
+            100% { transform: scale(1); }
+        }
+        .photo-container img { animation: fadeIn 0.7s ease; }
+        @keyframes fadeIn {
+            0% { opacity: 0.3; transform: scale(0.96); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .photo-container .placeholder-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #fcd8e2, #fbc4d2);
+            color: #b14b6e;
+            font-size: 4rem;
+        }
+
+        /* ===== 启动覆盖层 ===== */
+        #startOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(255, 200, 210, 0.92);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            cursor: pointer;
+            font-family: 'Segoe UI', 'Poppins', sans-serif;
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+        #startOverlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(1.05);
+        }
+        #startOverlay .big-heart {
+            font-size: 5rem;
+            color: #d63e6b;
+            animation: pulse-heart 1.5s infinite;
+        }
+        #startOverlay .title {
+            color: #7a2a4a;
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-top: 16px;
+            letter-spacing: 2px;
+        }
+        
+        /* ===== I LOVE YOU FOREVER - 红色心跳文字 ===== */
+        #startOverlay .sub {
+            color: #ff1744;
+            font-size: 2.0rem;
+            font-weight: 700;
+            margin-top: 10px;
+            letter-spacing: 3px;
+            text-shadow: 0 0 40px rgba(255, 23, 68, 0.4);
+            animation: heartbeat-text 1.2s ease-in-out infinite;
+            display: inline-block;
+        }
+        
+        /* 心跳动画：放大 + 缩小 + 发光 */
+        @keyframes heartbeat-text {
+            0% {
+                transform: scale(1);
+                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
+            }
+            14% {
+                transform: scale(1.25);
+                text-shadow: 0 0 60px rgba(255, 23, 68, 0.7), 0 0 100px rgba(255, 23, 68, 0.3);
+            }
+            28% {
+                transform: scale(1);
+                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
+            }
+            42% {
+                transform: scale(1.2);
+                text-shadow: 0 0 50px rgba(255, 23, 68, 0.6), 0 0 80px rgba(255, 23, 68, 0.2);
+            }
+            56% {
+                transform: scale(1);
+                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
+            }
+            100% {
+                transform: scale(1);
+                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
+            }
+        }
+
+        #startOverlay .hint {
+            color: #d63e6b;
+            font-size: 1.8rem;
+            margin-top: 30px;
+            animation: bounce-down 1.5s infinite;
+        }
+        @keyframes bounce-down {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(12px); }
+        }
+        @media (max-width: 600px) {
+            #startOverlay .title { font-size: 2rem; }
+            #startOverlay .big-heart { font-size: 3.5rem; }
+            #startOverlay .sub { font-size: 1.5rem; }
+            #startOverlay .hint { font-size: 1.4rem; }
+        }
+        @media (max-width: 420px) {
+            #startOverlay .sub { font-size: 1.2rem; letter-spacing: 2px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== 启动覆盖层 ===== -->
+<div id="startOverlay">
+    <i class="fas fa-heart big-heart"></i>
+    <div class="title">💖 送给 ZSY</div>
+    <div class="sub">I LOVE YOU FOREVER</div>
+    <div class="hint">👇 点击开始</div>
+</div>
+
+<!-- ===== 主要内容 ===== -->
+<div class="card">
+    <div class="header">
+        <h1>
+            <i class="fas fa-heart"></i>
+            ZSY · 我爱你
+            <i class="fas fa-heart" style="animation-delay: 0.4s;"></i>
+        </h1>
+    </div>
+
+    <div class="photo-wrapper">
+        <div class="photo-container" id="photoContainer">
+            <img id="mainPhoto" src="https://picsum.photos/seed/love1/600/600" alt="照片">
+            <div class="photo-badge" id="photoBadge">
+                <i class="fas fa-heart"></i> <span id="numberDisplay">1 / 52</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="quote-box" id="quoteBox">
+        <i class="fas fa-heart"></i>
+        <span class="quote-text" id="quoteText">
+            点击 <span class="highlight">播放</span> 感受我的心意 💕
+        </span>
+    </div>
+
+    <div class="controls">
+        <div class="progress-area">
+            <span id="progressLabel">1/52</span>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="ctrl-btn" id="prevBtn"><i class="fas fa-chevron-left"></i> 上一张</button>
+            <button class="ctrl-btn primary" id="playBtn"><i class="fas fa-play"></i> 播放</button>
+            <button class="ctrl-btn" id="nextBtn">下一张 <i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="btn-group" style="margin-top: 4px;">
+            <button class="ctrl-btn" id="shuffleBtn"><i class="fas fa-random"></i> 随机</button>
+            <button class="ctrl-btn" id="resetBtn"><i class="fas fa-undo-alt"></i> 第一张</button>
+            <button class="music-btn" id="musicToggle"><i class="fas fa-music"></i> <span id="musicLabel">播放中</span></button>
+        </div>
+    </div>
+</div>
+
+<div id="heartContainer"></div>
+
+<!-- 背景音乐 -->
+<audio id="bgMusic" loop preload="auto" crossorigin="anonymous">
+    <source src="https://zlh.zsy.obs.cn-east-3.myhuaweicloud.com/%E6%85%A2%E6%85%A2-%E9%A2%9C%E4%BA%BA%E4%B8%AD.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+    (function() {
+        "use strict";
+
+        const TOTAL = 52;
+
+        function getPhotoUrl(index) {
+            return `https://picsum.photos/seed/love${index + 100}/600/600`;
+        }
+
+        const loveMessages = [
+            "第一眼见到你，<span class='highlight'>心跳就乱了节奏</span> 💓",
+            "你是我每天醒来的第一个念头 🌅",
+            "你的笑容，是<span class='highlight'>世界上最美的风景</span> 🌸",
+            "想牵着你的手，走过每一个春夏秋冬 🍃",
+            "遇见你，是我此生<span class='highlight'>最幸运的事</span> 🍀",
+            "你就像星星，<span class='highlight'>照亮了我的夜空</span> ✨",
+            "我喜欢你，不只是现在，而是<span class='highlight'>永远</span> 💖",
+            "你的眼睛里，有我想要探索的宇宙 🌌",
+            "每次看到你，<span class='highlight'>世界都变得温柔</span> 🕊️",
+            "你是我写过最动人的情书 📖",
+            "想和你一起，把日子过成诗 🌹",
+            "你的声音，是<span class='highlight'>我最安心的旋律</span> 🎵",
+            "谢谢你出现在我的生命里 ❤️",
+            "我愿意，把所有的温柔都给你 🌷",
+            "你是我的 <span class='highlight'>独一无二</span> 💎",
+            "每一天，都爱你多一些 💕",
+            "你是我最想留住的幸运 🍀",
+            "与你相伴，<span class='highlight'>时光都变甜</span> 🍯",
+            "你的名字，是我听过最美的诗 📝",
+            "想每天都看到你的笑脸 😊",
+            "你是我 <span class='highlight'>此生最美的意外</span> 🌊",
+            "我爱你，不仅仅是三个字 💌",
+            "你的拥抱，是我最暖的港湾 ⛵",
+            "和你在一起，<span class='highlight'>哪里都是天堂</span> 🌈",
+            "你是我最想珍惜的宝藏 💎",
+            "你的善良，让我更加爱你 🌻",
+            "我想和你，<span class='highlight'>一起慢慢变老</span> 👴👵",
+            "你是我每天微笑的原因 😄",
+            "你的存在，就是我最大的幸福 🥰",
+            "我愿用一生，去守护你 🛡️",
+            "你是我永远的 <span class='highlight'>心动信号</span> 📡",
+            "你的眼睛，比星星更闪耀 ✨",
+            "我想每天对你说：<span class='highlight'>我爱你</span> 💗",
+            "你是我最想依赖的人 🤗",
+            "和你一起，平凡的日子也发光 🌟",
+            "你是我 <span class='highlight'>写不完的温柔</span> 🖋️",
+            "我喜欢你，从一而终 💞",
+            "你的笑，是我最好的药 💊❤️",
+            "我想和你，走遍世界的角落 🌍",
+            "你是我最想停留的风景 🏞️",
+            "你的拥抱，让我忘记所有烦恼 🤱",
+            "你是我 <span class='highlight'>此生不变的选择</span> ✅",
+            "你的善良，温柔了岁月 🌸",
+            "我想每天给你一个拥抱 🤗",
+            "你是我最想分享快乐的人 🎉",
+            "你的出现，让我的世界完整 🧩",
+            "我爱你，胜过所有言语 💬",
+            "你是我最想守护的笑容 😊",
+            "和你一起，<span class='highlight'>未来可期</span> 🚀",
+            "你是我永远的宝贝 🧸",
+            "我想和你，<span class='highlight'>一直一直在一起</span> ♾️",
+            "这是最后一张，但爱你 <span class='highlight'>没有终点</span> 💖"
+        ];
+        while (loveMessages.length < TOTAL) {
+            loveMessages.push("你是我 <span class='highlight'>最美的风景</span>，我爱你 💕");
+        }
+
+        // DOM
+        const mainPhoto = document.getElementById('mainPhoto');
+        const numberDisplay = document.getElementById('numberDisplay');
+        const quoteText = document.getElementById('quoteText');
+        const progressFill = document.getElementById('progressFill');
+        const progressLabel = document.getElementById('progressLabel');
+        const photoContainer = document.getElementById('photoContainer');
+
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const playBtn = document.getElementById('playBtn');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const musicToggle = document.getElementById('musicToggle');
+        const musicLabel = document.getElementById('musicLabel');
+        const bgMusic = document.getElementById('bgMusic');
+
+        const startOverlay = document.getElementById('startOverlay');
+
+        let currentIndex = 0;
+        let isPlaying = false;
+        let playInterval = null;
+        const INTERVAL_MS = 3500;
+        let isMusicPlaying = false;
+        let musicReady = false;
+        let isStarted = false;
+
+        // ----- 爱心特效 -----
+        function burstHearts(count = 60) {
+            const container = document.getElementById('heartContainer');
+            const colors = ['#d63e6b', '#e8436e', '#f28b9e', '#ffb3c6', '#f7a1b8', '#ff8da1', '#ff6b8a'];
+            const heartSizes = [24, 30, 36, 42, 50];
+
+            for (let i = 0; i < count; i++) {
+                const heart = document.createElement('i');
+                heart.className = 'fas fa-heart floating-heart';
+                const size = heartSizes[Math.floor(Math.random() * heartSizes.length)];
+                heart.style.fontSize = size + 'px';
+                heart.style.color = colors[Math.floor(Math.random() * colors.length)];
+                heart.style.left = (Math.random() * 92 + 4) + '%';
+                heart.style.top = (Math.random() * 92 + 4) + '%';
+                heart.style.animationDuration = (0.7 + Math.random() * 0.4) + 's';
+                heart.style.animationDelay = (Math.random() * 0.2) + 's';
+                heart.style.transform = `rotate(${Math.random() * 360}deg)`;
+                container.appendChild(heart);
+
+                setTimeout(() => {
+                    if (heart.parentNode) heart.remove();
+                }, 1200);
+            }
+        }
+
+        // ----- 启动（用户点击覆盖层） -----
+        function startApp() {
+            if (isStarted) return;
+            isStarted = true;
+
+            // 播放音乐
+            bgMusic.volume = 0.5;
+            bgMusic.loop = true;
+            bgMusic.play().then(() => {
+                musicReady = true;
+                isMusicPlaying = true;
+                musicLabel.textContent = '播放中';
+                console.log('✅ 音乐播放成功');
+            }).catch((error) => {
+                console.warn('⚠️ 音乐播放失败:', error);
+                musicLabel.textContent = '点击播放';
+            });
+
+            // 隐藏覆盖层
+            startOverlay.classList.add('hidden');
+            
+            // 大量爱心庆祝
+            setTimeout(() => burstHearts(100), 200);
+            setTimeout(() => burstHearts(80), 400);
+        }
+
+        // ----- 音乐开关 -----
+        function toggleMusic() {
+            if (bgMusic.paused) {
+                bgMusic.play().then(() => {
+                    isMusicPlaying = true;
+                    musicReady = true;
+                    musicLabel.textContent = '播放中';
+                }).catch(() => {});
+            } else {
+                bgMusic.pause();
+                isMusicPlaying = false;
+                musicLabel.textContent = '已暂停';
+            }
+            burstHearts(40);
+        }
+
+        // ----- 照片更新 -----
+        function updateDisplay(index) {
+            if (index < 0) index = 0;
+            if (index >= TOTAL) index = TOTAL - 1;
+            currentIndex = index;
+
+            mainPhoto.src = getPhotoUrl(index);
+            mainPhoto.style.animation = 'none';
+            void mainPhoto.offsetHeight;
+            mainPhoto.style.animation = 'fadeIn 0.7s ease';
+
+            numberDisplay.textContent = `${index + 1} / ${TOTAL}`;
+            quoteText.innerHTML = loveMessages[index] || "你是我最想珍惜的人 💖";
+
+            const percent = ((index + 1) / TOTAL) * 100;
+            progressFill.style.width = `${percent}%`;
+            progressLabel.textContent = `${index + 1}/${TOTAL}`;
+        }
+
+        function prevPhoto() {
+            if (isPlaying) togglePlay();
+            updateDisplay((currentIndex - 1 + TOTAL) % TOTAL);
+            burstHearts(55);
+        }
+
+        function nextPhoto() {
+            if (isPlaying) togglePlay();
+            updateDisplay((currentIndex + 1) % TOTAL);
+            burstHearts(55);
+        }
+
+        function shufflePhoto() {
+            if (isPlaying) togglePlay();
+            updateDisplay(Math.floor(Math.random() * TOTAL));
+            burstHearts(70);
+        }
+
+        function resetToFirst() {
+            if (isPlaying) togglePlay();
+            updateDisplay(0);
+            burstHearts(60);
+        }
+
+        function togglePlay() {
+            if (isPlaying) {
+                clearInterval(playInterval);
+                playInterval = null;
+                isPlaying = false;
+                playBtn.innerHTML = '<i class="fas fa-play"></i> 播放';
+                playBtn.style.background = '';
+                playBtn.style.color = '';
+                playBtn.classList.remove('primary');
+            } else {
+                isPlaying = true;
+                playBtn.innerHTML = '<i class="fas fa-pause"></i> 暂停';
+                playBtn.style.background = '#d63b63';
+                playBtn.style.color = 'white';
+                playBtn.classList.add('primary');
+                if (currentIndex === TOTAL - 1) updateDisplay(0);
+                playInterval = setInterval(() => {
+                    updateDisplay((currentIndex + 1) % TOTAL);
+                    burstHearts(35);
+                }, INTERVAL_MS);
+            }
+            burstHearts(50);
+        }
+
+        function handlePhotoClick() {
+            burstHearts(65);
+        }
+
+        // ----- 初始化 -----
+        function init() {
+            updateDisplay(0);
+            if (playInterval) {
+                clearInterval(playInterval);
+                playInterval = null;
+                isPlaying = false;
+                playBtn.innerHTML = '<i class="fas fa-play"></i> 播放';
+                playBtn.style.background = '';
+                playBtn.style.color = '';
+                playBtn.classList.remove('primary');
+            }
+            
+            // 绑定启动事件
+            startOverlay.addEventListener('click', startApp);
+            startOverlay.addEventListener('touchstart', startApp);
+
+            // 先显示爱心
+            setTimeout(() => burstHearts(35), 500);
+        }
+
+        // ----- 绑定按钮事件 -----
+        prevBtn.addEventListener('click', prevPhoto);
+        nextBtn.addEventListener('click', nextPhoto);
+        playBtn.addEventListener('click', togglePlay);
+        shuffleBtn.addEventListener('click', shufflePhoto);
+        resetBtn.addEventListener('click', resetToFirst);
+        musicToggle.addEventListener('click', toggleMusic);
+        photoContainer.addEventListener('click', handlePhotoClick);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') { e.preventDefault(); prevPhoto(); }
+            else if (e.key === 'ArrowRight') { e.preventDefault(); nextPhoto(); }
+            else if (e.key === ' ' || e.key === 'Space') { e.preventDefault(); togglePlay(); }
+        });
+
+        mainPhoto.addEventListener('error', function() {
+            const parent = this.parentNode;
+            const placeholder = document.createElement('div');
+            placeholder.className = 'placeholder-icon';
+            placeholder.innerHTML = '<i class="fas fa-heart" style="font-size: 3.5rem; opacity: 0.6;"></i>';
+            this.style.display = 'none';
+            parent.appendChild(placeholder);
+        });
+
+        init();
+
+        window.addEventListener('beforeunload', function() {
+            if (playInterval) clearInterval(playInterval);
+        });
+    })();
+</script>
+</body>
+</html>
