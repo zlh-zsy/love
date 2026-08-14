@@ -341,13 +341,32 @@
             display: inline-block;
         }
         
+        /* 心跳动画：放大 + 缩小 + 发光 */
         @keyframes heartbeat-text {
-            0% { transform: scale(1); text-shadow: 0 0 20px rgba(255, 23, 68, 0.3); }
-            14% { transform: scale(1.25); text-shadow: 0 0 60px rgba(255, 23, 68, 0.7), 0 0 100px rgba(255, 23, 68, 0.3); }
-            28% { transform: scale(1); text-shadow: 0 0 20px rgba(255, 23, 68, 0.3); }
-            42% { transform: scale(1.2); text-shadow: 0 0 50px rgba(255, 23, 68, 0.6), 0 0 80px rgba(255, 23, 68, 0.2); }
-            56% { transform: scale(1); text-shadow: 0 0 20px rgba(255, 23, 68, 0.3); }
-            100% { transform: scale(1); text-shadow: 0 0 20px rgba(255, 23, 68, 0.3); }
+            0% {
+                transform: scale(1);
+                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
+            }
+            14% {
+                transform: scale(1.25);
+                text-shadow: 0 0 60px rgba(255, 23, 68, 0.7), 0 0 100px rgba(255, 23, 68, 0.3);
+            }
+            28% {
+                transform: scale(1);
+                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
+            }
+            42% {
+                transform: scale(1.2);
+                text-shadow: 0 0 50px rgba(255, 23, 68, 0.6), 0 0 80px rgba(255, 23, 68, 0.2);
+            }
+            56% {
+                transform: scale(1);
+                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
+            }
+            100% {
+                transform: scale(1);
+                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
+            }
         }
 
         #startOverlay .hint {
@@ -369,14 +388,6 @@
         @media (max-width: 420px) {
             #startOverlay .sub { font-size: 1.2rem; letter-spacing: 2px; }
         }
-
-        /* 音乐加载状态提示 */
-        .music-status-tip {
-            font-size: 0.7rem;
-            color: #9a627b;
-            margin-left: 4px;
-            opacity: 0.7;
-        }
     </style>
 </head>
 <body>
@@ -384,7 +395,7 @@
 <!-- ===== 启动覆盖层 ===== -->
 <div id="startOverlay">
     <i class="fas fa-heart big-heart"></i>
-    <div class="title">💖 送给 ZSY 1</div>
+    <div class="title">💖 送给 ZSY</div>
     <div class="sub">I LOVE YOU FOREVER</div>
     <div class="hint">👇 点击开始</div>
 </div>
@@ -431,21 +442,16 @@
         <div class="btn-group" style="margin-top: 4px;">
             <button class="ctrl-btn" id="shuffleBtn"><i class="fas fa-random"></i> 随机</button>
             <button class="ctrl-btn" id="resetBtn"><i class="fas fa-undo-alt"></i> 第一张</button>
-            <button class="music-btn" id="musicToggle">
-                <i class="fas fa-music"></i> 
-                <span id="musicLabel">点击播放</span>
-                <span class="music-status-tip" id="musicStatusTip">🔇</span>
-            </button>
+            <button class="music-btn" id="musicToggle"><i class="fas fa-music"></i> <span id="musicLabel">播放中</span></button>
         </div>
     </div>
 </div>
 
 <div id="heartContainer"></div>
 
-<!-- ===== 背景音乐 - 移动端优化 ===== -->
-<audio id="bgMusic" loop playsinline webkit-playsinline crossorigin="anonymous">
-    <!-- 尝试多种格式以提高兼容性 -->
-    <source src="manman.mp3" type="audio/mp3">
+<!-- 背景音乐 -->
+<audio id="bgMusic" loop preload="auto" crossorigin="anonymous">
+    <source src="https://zlh.zsy.obs.cn-east-3.myhuaweicloud.com/%E6%85%A2%E6%85%A2-%E9%A2%9C%E4%BA%BA%E4%B8%AD.mp3" type="audio/mpeg">
 </audio>
 
 <script>
@@ -531,7 +537,6 @@
         const resetBtn = document.getElementById('resetBtn');
         const musicToggle = document.getElementById('musicToggle');
         const musicLabel = document.getElementById('musicLabel');
-        const musicStatusTip = document.getElementById('musicStatusTip');
         const bgMusic = document.getElementById('bgMusic');
 
         const startOverlay = document.getElementById('startOverlay');
@@ -543,7 +548,6 @@
         let isMusicPlaying = false;
         let musicReady = false;
         let isStarted = false;
-        let musicPlayAttempts = 0;
 
         // ----- 爱心特效 -----
         function burstHearts(count = 60) {
@@ -570,62 +574,22 @@
             }
         }
 
-        // ----- 播放音乐的通用函数（移动端优化） -----
-        function playMusicInternal() {
-            if (musicReady && !bgMusic.paused) return Promise.resolve(true);
-
-            bgMusic.volume = 0.5;
-            bgMusic.loop = true;
-
-            // 关键：先加载音频
-            bgMusic.load();
-
-            const playPromise = bgMusic.play();
-
-            if (playPromise !== undefined) {
-                return playPromise.then(() => {
-                    musicReady = true;
-                    isMusicPlaying = true;
-                    musicLabel.textContent = '播放中';
-                    musicStatusTip.textContent = '▶️';
-                    console.log('✅ 音乐播放成功');
-                    return true;
-                }).catch((error) => {
-                    console.warn('⚠️ 音乐播放失败:', error.name, error.message);
-                    musicReady = false;
-                    isMusicPlaying = false;
-                    
-                    // 针对不同错误采取不同策略
-                    if (error.name === 'NotAllowedError') {
-                        // 用户未交互，需要等待用户手势
-                        musicLabel.textContent = '点击播放';
-                        musicStatusTip.textContent = '🔇';
-                    } else if (error.name === 'NotSupportedError') {
-                        // 格式不支持
-                        musicLabel.textContent = '格式不支持';
-                        musicStatusTip.textContent = '❌';
-                    } else {
-                        musicLabel.textContent = '播放失败';
-                        musicStatusTip.textContent = '❌';
-                    }
-                    return false;
-                });
-            }
-            return Promise.resolve(false);
-        }
-
         // ----- 启动（用户点击覆盖层） -----
         function startApp() {
             if (isStarted) return;
             isStarted = true;
 
-            // 在用户手势中播放音乐
-            playMusicInternal().then((success) => {
-                if (!success) {
-                    // 如果播放失败，引导用户点击音乐按钮
-                    musicLabel.textContent = '点击播放';
-                    musicStatusTip.textContent = '🔇';
-                }
+            // 播放音乐
+            bgMusic.volume = 0.5;
+            bgMusic.loop = true;
+            bgMusic.play().then(() => {
+                musicReady = true;
+                isMusicPlaying = true;
+                musicLabel.textContent = '播放中';
+                console.log('✅ 音乐播放成功');
+            }).catch((error) => {
+                console.warn('⚠️ 音乐播放失败:', error);
+                musicLabel.textContent = '点击播放';
             });
 
             // 隐藏覆盖层
@@ -639,13 +603,15 @@
         // ----- 音乐开关 -----
         function toggleMusic() {
             if (bgMusic.paused) {
-                // 用户主动点击播放
-                playMusicInternal().catch(() => {});
+                bgMusic.play().then(() => {
+                    isMusicPlaying = true;
+                    musicReady = true;
+                    musicLabel.textContent = '播放中';
+                }).catch(() => {});
             } else {
                 bgMusic.pause();
                 isMusicPlaying = false;
                 musicLabel.textContent = '已暂停';
-                musicStatusTip.textContent = '⏸️';
             }
             burstHearts(40);
         }
@@ -740,17 +706,6 @@
 
             // 先显示爱心
             setTimeout(() => burstHearts(35), 500);
-
-            // 检测音频是否可播放
-            bgMusic.addEventListener('canplaythrough', function() {
-                console.log('✅ 音频加载完成');
-            });
-
-            bgMusic.addEventListener('error', function(e) {
-                console.warn('⚠️ 音频加载错误:', e);
-                musicLabel.textContent = '加载失败';
-                musicStatusTip.textContent = '❌';
-            });
         }
 
         // ----- 绑定按钮事件 -----
