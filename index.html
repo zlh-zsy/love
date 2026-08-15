@@ -644,19 +644,13 @@
 <div id="heartContainer"></div>
 
 <!-- ===== 音频资源 ===== -->
-<!-- 背景音乐 -->
-<audio id="bgMusic" loop preload="auto" crossorigin="anonymous">
+<audio id="bgMusic" loop preload="auto">
     <source src="manman.mp3" type="audio/mpeg">
-    <source src="manman.ogg" type="audio/ogg">
-    <source src="manman.wav" type="audio/wav">
 </audio>
 
-<!-- 告白录音 -->
-<audio id="voiceRecord" preload="auto" crossorigin="anonymous">
+<audio id="voiceRecord" preload="auto">
     <source src="zsy.m4a" type="audio/mp4">
     <source src="zsy.mp3" type="audio/mpeg">
-    <source src="zsy.ogg" type="audio/ogg">
-    <source src="zsy.wav" type="audio/wav">
 </audio>
 
 <script>
@@ -664,10 +658,54 @@
         "use strict";
 
         // ===== 音量常量 =====
-        const MUSIC_VOLUME_NORMAL = 0.35;   // 正常音乐音量
-        const MUSIC_VOLUME_LOW = 0.20;      // 录音播放时音乐音量（几乎听不到）
+        const MUSIC_VOLUME_NORMAL = 0.35;
+        const MUSIC_VOLUME_LOW = 0.08;
 
-        // ===== 调试工具 =====
+        // ===== DOM 引用 =====
+        const mainPhoto = document.getElementById('mainPhoto');
+        const numberDisplay = document.getElementById('numberDisplay');
+        const quoteText = document.getElementById('quoteText');
+        const progressFill = document.getElementById('progressFill');
+        const progressLabel = document.getElementById('progressLabel');
+        const photoContainer = document.getElementById('photoContainer');
+
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const musicToggle = document.getElementById('musicToggle');
+        const musicLabel = document.getElementById('musicLabel');
+        const bgMusic = document.getElementById('bgMusic');
+
+        const startOverlay = document.getElementById('startOverlay');
+        const progressBarOverlay = document.getElementById('progressBarOverlay');
+        const progressText = document.getElementById('progressText');
+        const readyModal = document.getElementById('readyModal');
+        const readyYes = document.getElementById('readyYes');
+        const readyNo = document.getElementById('readyNo');
+        const mainCard = document.getElementById('mainCard');
+
+        const voiceRecord = document.getElementById('voiceRecord');
+        const voiceBtn = document.getElementById('voiceBtn');
+        const voiceLabel = document.getElementById('voiceLabel');
+
+        // ===== 状态变量 =====
+        let currentIndex = 0;
+        let isMusicPlaying = false;
+        let isStarted = false;
+        let isVoicePlaying = false;
+        let autoPlayInterval = null;
+        let progressInterval = null;
+        let isWebAudioReady = false;
+        let audioCtx = null;
+        let gainNode = null;
+        let musicSource = null;
+
+        const TOTAL = 52;
+        const LOADING_DURATION = 10000;
+        const AUTO_INTERVAL_MS = 5000;
+
+        // ===== 工具函数 =====
         const debugEl = document.getElementById('debugInfo');
         let debugLogs = [];
 
@@ -675,7 +713,7 @@
             const timestamp = new Date().toLocaleTimeString();
             const logMsg = `[${timestamp}] ${msg}`;
             debugLogs.push(logMsg);
-            if (debugLogs.length > 50) debugLogs.shift();
+            if (debugLogs.length > 30) debugLogs.shift();
             debugEl.innerHTML = debugLogs.join('\n');
             debugEl.scrollTop = debugEl.scrollHeight;
             console.log(logMsg);
@@ -690,11 +728,6 @@
             }
             setTimeout(() => { debugToggleCount = 0; }, 3000);
         });
-
-        debugLog('🚀 页面加载开始');
-
-        const TOTAL = 52;
-        const LOADING_DURATION = 10000;
 
         function getPhotoUrl(index) {
             return `https://cdn.jsdelivr.net/gh/zlh-zsy/love/zsy/${index + 1}.jpg`;
@@ -758,142 +791,58 @@
             loveMessages.push("你是我 <span class='highlight'>最美的风景</span>，我爱你 💕");
         }
 
-        // DOM
-        const mainPhoto = document.getElementById('mainPhoto');
-        const numberDisplay = document.getElementById('numberDisplay');
-        const quoteText = document.getElementById('quoteText');
-        const progressFill = document.getElementById('progressFill');
-        const progressLabel = document.getElementById('progressLabel');
-        const photoContainer = document.getElementById('photoContainer');
-
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const shuffleBtn = document.getElementById('shuffleBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        const musicToggle = document.getElementById('musicToggle');
-        const musicLabel = document.getElementById('musicLabel');
-        const bgMusic = document.getElementById('bgMusic');
-
-        const startOverlay = document.getElementById('startOverlay');
-        const progressBarOverlay = document.getElementById('progressBarOverlay');
-        const progressText = document.getElementById('progressText');
-        const readyModal = document.getElementById('readyModal');
-        const readyYes = document.getElementById('readyYes');
-        const readyNo = document.getElementById('readyNo');
-        const mainCard = document.getElementById('mainCard');
-
-        const voiceRecord = document.getElementById('voiceRecord');
-        const voiceBtn = document.getElementById('voiceBtn');
-        const voiceLabel = document.getElementById('voiceLabel');
-
-        let currentIndex = 0;
-        let isMusicPlaying = false;
-        let isStarted = false;
-        let progressInterval = null;
-        let isVoicePlaying = false;
-        let autoPlayInterval = null;
-        const AUTO_INTERVAL_MS = 5000;
-
         // ============================================================
-        // ===== 使用 Web Audio API 控制音量（手机兼容） =====
+        // ===== Web Audio API（优化版 - 延迟初始化） =====
         // ============================================================
-        let audioContext = null;
-        let gainNode = null;
-        let musicSource = null;
-        let isWebAudioInitialized = false;
-
         function initWebAudio() {
-            if (isWebAudioInitialized) return;
+            if (isWebAudioReady) return;
             try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                gainNode = audioContext.createGain();
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                gainNode = audioCtx.createGain();
                 gainNode.gain.value = MUSIC_VOLUME_NORMAL;
-                gainNode.connect(audioContext.destination);
-                isWebAudioInitialized = true;
-                debugLog('✅ Web Audio API 初始化成功');
+                gainNode.connect(audioCtx.destination);
+                isWebAudioReady = true;
+                debugLog('✅ Web Audio 初始化成功');
             } catch (e) {
-                debugLog('❌ Web Audio API 初始化失败: ' + e.message);
+                debugLog('⚠️ Web Audio 不可用，使用 HTML5 volume');
             }
         }
 
         function connectMusicToWebAudio() {
-            if (!isWebAudioInitialized || musicSource) return;
+            if (!isWebAudioReady || musicSource) return;
             try {
-                musicSource = audioContext.createMediaElementSource(bgMusic);
+                musicSource = audioCtx.createMediaElementSource(bgMusic);
                 musicSource.connect(gainNode);
-                debugLog('✅ 音乐已连接到 Web Audio');
-                return true;
+                debugLog('✅ 音乐已连接 Web Audio');
             } catch (e) {
-                debugLog('❌ 连接 Web Audio 失败: ' + e.message);
-                return false;
+                debugLog('⚠️ 连接失败: ' + e.message);
             }
         }
 
         function setMusicVolume(volume) {
             const v = Math.max(0, Math.min(1, volume));
-            if (gainNode) {
+            
+            // 优先使用 Web Audio
+            if (isWebAudioReady && gainNode) {
                 try {
-                    gainNode.gain.setTargetAtTime(v, audioContext.currentTime, 0.05);
-                    debugLog(`🔊 Web Audio 音量设置为 ${Math.round(v * 100)}%`);
+                    gainNode.gain.setTargetAtTime(v, audioCtx.currentTime, 0.1);
                     return;
-                } catch (e) {
-                    debugLog('⚠️ Web Audio 设置音量失败: ' + e.message);
-                }
+                } catch (e) {}
             }
+            
+            // 降级使用 HTML5 volume
             try {
                 bgMusic.volume = v;
-                debugLog(`🔊 HTML5 volume 设置为 ${Math.round(v * 100)}%`);
-            } catch (e) {
-                debugLog('⚠️ HTML5 volume 设置失败: ' + e.message);
+            } catch (e) {}
+        }
+
+        function ensureAudioContext() {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => {});
             }
         }
 
-        function tryInitWebAudio() {
-            if (!isWebAudioInitialized) {
-                initWebAudio();
-            }
-            if (isWebAudioInitialized && !musicSource) {
-                connectMusicToWebAudio();
-            }
-            if (audioContext && audioContext.state === 'suspended') {
-                audioContext.resume().then(() => {
-                    debugLog('✅ AudioContext 已恢复');
-                }).catch((e) => {
-                    debugLog('⚠️ AudioContext 恢复失败: ' + e.message);
-                });
-            }
-        }
-
-        // ----- 启动进度条 -----
-        function startProgressBar() {
-            let startTime = Date.now();
-
-            if (progressInterval) {
-                clearInterval(progressInterval);
-                progressInterval = null;
-            }
-
-            progressInterval = setInterval(() => {
-                const elapsed = Date.now() - startTime;
-                let progress = Math.min((elapsed / LOADING_DURATION) * 100, 100);
-                if (progress > 99) progress = 100;
-                
-                progressBarOverlay.style.width = progress + '%';
-                progressText.textContent = `加载中 ${Math.round(progress)}%`;
-
-                if (progress >= 100) {
-                    clearInterval(progressInterval);
-                    progressInterval = null;
-                    setTimeout(() => {
-                        readyModal.classList.add('show');
-                        burstHearts(50);
-                        debugLog('✅ 加载完成，显示准备弹窗');
-                    }, 300);
-                }
-            }, 50);
-        }
-
-        // ----- 爱心特效 -----
+        // ===== 爱心特效 =====
         function burstHearts(count = 60) {
             const container = document.getElementById('heartContainer');
             const colors = ['#d63e6b', '#e8436e', '#f28b9e', '#ffb3c6', '#f7a1b8', '#ff8da1', '#ff6b8a'];
@@ -918,12 +867,33 @@
             }
         }
 
-        // ----- 启动自动轮播 -----
+        // ===== 进度条 =====
+        function startProgressBar() {
+            let startTime = Date.now();
+            if (progressInterval) clearInterval(progressInterval);
+
+            progressInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                let progress = Math.min((elapsed / LOADING_DURATION) * 100, 100);
+                if (progress > 99) progress = 100;
+                
+                progressBarOverlay.style.width = progress + '%';
+                progressText.textContent = `加载中 ${Math.round(progress)}%`;
+
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                    setTimeout(() => {
+                        readyModal.classList.add('show');
+                        burstHearts(50);
+                    }, 300);
+                }
+            }, 50);
+        }
+
+        // ===== 自动轮播 =====
         function startAutoPlay() {
-            if (autoPlayInterval) {
-                clearInterval(autoPlayInterval);
-                autoPlayInterval = null;
-            }
+            if (autoPlayInterval) clearInterval(autoPlayInterval);
             autoPlayInterval = setInterval(() => {
                 updateDisplay((currentIndex + 1) % TOTAL);
                 burstHearts(35);
@@ -937,26 +907,33 @@
             }
         }
 
-        // ----- 播放音频 -----
-        function playAudio(audioElement, onSuccess, onError) {
-            debugLog(`🎵 尝试播放: ${audioElement.src || audioElement.querySelector('source')?.src || '未知'}`);
+        // ===== 播放音频（带加载等待） =====
+        function playAudioSafely(audioElement, onSuccess, onError) {
+            // 如果音频还没加载好，等待一下
+            if (audioElement.readyState < 2) {
+                audioElement.addEventListener('canplaythrough', function onReady() {
+                    audioElement.removeEventListener('canplaythrough', onReady);
+                    audioElement.play().then(onSuccess).catch(onError);
+                });
+                // 超时保护
+                setTimeout(() => {
+                    audioElement.play().then(onSuccess).catch(onError);
+                }, 3000);
+                return;
+            }
+            
             audioElement.currentTime = 0;
-            audioElement.play().then(() => {
-                debugLog('✅ 播放成功');
-                if (onSuccess) onSuccess();
-            }).catch((error) => {
-                debugLog(`❌ 播放失败: ${error.name} - ${error.message}`);
-                if (onError) onError(error);
-            });
+            audioElement.play().then(onSuccess).catch(onError);
         }
 
-        // ----- 进入主页面 -----
+        // ===== 进入主页面 =====
         function enterMainPage() {
             if (isStarted) return;
             isStarted = true;
             debugLog('🚪 进入主页面');
 
-            tryInitWebAudio();
+            // 初始化 Web Audio（延迟到用户点击后）
+            initWebAudio();
 
             readyModal.classList.remove('show');
 
@@ -965,61 +942,39 @@
             }
 
             mainCard.style.display = 'block';
-            
             startAutoPlay();
-            
+
             // ===== 播放背景音乐 =====
-            debugLog('🎵 开始播放背景音乐');
+            debugLog('🎵 播放背景音乐');
             musicLabel.textContent = '加载中...';
             bgMusic.loop = true;
-            
-            bgMusic.addEventListener('loadeddata', function onLoaded() {
-                bgMusic.removeEventListener('loadeddata', onLoaded);
-                debugLog('✅ 背景音乐数据已加载');
-                if (isWebAudioInitialized && !musicSource) {
-                    connectMusicToWebAudio();
-                }
-            });
-            
-            bgMusic.addEventListener('error', function(e) {
-                debugLog(`❌ 背景音乐加载错误: ${e.message}`);
-                musicLabel.textContent = '点击播放';
-            });
-            
-            playAudio(
+            bgMusic.volume = MUSIC_VOLUME_NORMAL;
+
+            // 确保 Web Audio 连接
+            if (isWebAudioReady && !musicSource) {
+                connectMusicToWebAudio();
+            }
+
+            playAudioSafely(
                 bgMusic,
                 function() {
                     isMusicPlaying = true;
                     musicLabel.textContent = '播放中';
-                    if (isWebAudioInitialized && !musicSource) {
-                        connectMusicToWebAudio();
-                    }
                     setMusicVolume(MUSIC_VOLUME_NORMAL);
-                    debugLog('✅ 背景音乐播放成功');
+                    debugLog('✅ 音乐播放成功');
                 },
                 function(error) {
-                    debugLog(`⚠️ 背景音乐播放失败: ${error.message}`);
+                    debugLog('⚠️ 音乐播放失败: ' + error.message);
                     musicLabel.textContent = '点击播放';
                 }
             );
 
             // ===== 自动播放录音 =====
-            debugLog('🎙️ 开始播放录音');
+            debugLog('🎙️ 播放录音');
             voiceLabel.textContent = '加载中...';
             voiceBtn.disabled = true;
-            
-            voiceRecord.addEventListener('loadeddata', function onLoaded() {
-                voiceRecord.removeEventListener('loadeddata', onLoaded);
-                debugLog('✅ 录音数据已加载');
-            });
-            
-            voiceRecord.addEventListener('error', function(e) {
-                debugLog(`❌ 录音加载错误: ${e.message}`);
-                voiceLabel.textContent = '听录音';
-                voiceBtn.disabled = false;
-            });
-            
-            playAudio(
+
+            playAudioSafely(
                 voiceRecord,
                 function() {
                     isVoicePlaying = true;
@@ -1028,30 +983,30 @@
                     voiceBtn.disabled = false;
                     if (isMusicPlaying) {
                         setMusicVolume(MUSIC_VOLUME_LOW);
-                        debugLog(`🔊 录音播放，音量降至 ${Math.round(MUSIC_VOLUME_LOW * 100)}%`);
+                        debugLog(`🔊 音量降至 ${Math.round(MUSIC_VOLUME_LOW * 100)}%`);
                     }
                     debugLog('✅ 录音播放成功');
                 },
                 function(error) {
-                    debugLog(`⚠️ 录音播放失败: ${error.message}`);
+                    debugLog('⚠️ 录音播放失败: ' + error.message);
                     voiceLabel.textContent = '听录音';
                     voiceBtn.disabled = false;
                 }
             );
 
             startOverlay.classList.add('hidden');
-            
             setTimeout(() => burstHearts(100), 400);
         }
 
-        // ----- 重新加载 -----
+        // ===== 重新加载 =====
         function reloadPage() {
-            debugLog('🔄 重新加载页面');
+            debugLog('🔄 重新加载');
             readyModal.classList.remove('show');
             progressBarOverlay.style.width = '0%';
             progressText.textContent = '加载中 0%';
             startProgressBar();
             preloadAllImages();
+            
             bgMusic.pause();
             bgMusic.currentTime = 0;
             voiceRecord.pause();
@@ -1063,36 +1018,30 @@
             musicLabel.textContent = '加载中...';
             isMusicPlaying = false;
             isStarted = false;
-            if (musicSource) {
-                try { musicSource.disconnect(); } catch(e) {}
-                musicSource = null;
+            isWebAudioReady = false;
+            musicSource = null;
+            if (audioCtx) {
+                try { audioCtx.close(); } catch(e) {}
+                audioCtx = null;
+                gainNode = null;
             }
-            setMusicVolume(MUSIC_VOLUME_NORMAL);
         }
 
-        // ----- 音乐开关 -----
+        // ===== 音乐开关 =====
         function toggleMusic() {
             if (bgMusic.paused) {
-                debugLog('🎵 用户点击播放音乐');
-                tryInitWebAudio();
-                if (isWebAudioInitialized && !musicSource) {
+                ensureAudioContext();
+                if (isWebAudioReady && !musicSource) {
                     connectMusicToWebAudio();
                 }
-                if (isVoicePlaying) {
-                    setMusicVolume(MUSIC_VOLUME_LOW);
-                } else {
-                    setMusicVolume(MUSIC_VOLUME_NORMAL);
-                }
+                bgMusic.volume = isVoicePlaying ? MUSIC_VOLUME_LOW : MUSIC_VOLUME_NORMAL;
                 bgMusic.play().then(() => {
                     isMusicPlaying = true;
                     musicLabel.textContent = '播放中';
-                    debugLog('✅ 音乐播放成功');
-                }).catch((error) => {
-                    debugLog(`❌ 音乐播放失败: ${error.message}`);
+                }).catch(() => {
                     musicLabel.textContent = '点击播放';
                 });
             } else {
-                debugLog('⏸️ 用户暂停音乐');
                 bgMusic.pause();
                 isMusicPlaying = false;
                 musicLabel.textContent = '已暂停';
@@ -1100,10 +1049,9 @@
             burstHearts(40);
         }
 
-        // ----- 录音控制 -----
+        // ===== 录音控制 =====
         voiceBtn.addEventListener('click', function() {
             if (isVoicePlaying) {
-                debugLog('⏹️ 用户停止录音');
                 voiceRecord.pause();
                 voiceRecord.currentTime = 0;
                 isVoicePlaying = false;
@@ -1111,13 +1059,12 @@
                 voiceBtn.classList.remove('recording');
                 if (isMusicPlaying) {
                     setMusicVolume(MUSIC_VOLUME_NORMAL);
-                    debugLog(`🔊 音量恢复至 ${Math.round(MUSIC_VOLUME_NORMAL * 100)}%`);
                 }
             } else {
-                debugLog('🎙️ 用户点击播放录音');
-                tryInitWebAudio();
                 voiceLabel.textContent = '加载中...';
                 voiceBtn.disabled = true;
+                ensureAudioContext();
+                
                 voiceRecord.play().then(() => {
                     isVoicePlaying = true;
                     voiceLabel.textContent = '停止';
@@ -1125,55 +1072,37 @@
                     voiceBtn.disabled = false;
                     if (isMusicPlaying) {
                         setMusicVolume(MUSIC_VOLUME_LOW);
-                        debugLog(`🔊 录音播放，音量降至 ${Math.round(MUSIC_VOLUME_LOW * 100)}%`);
                     }
-                    debugLog('✅ 录音播放成功');
                 }).catch((error) => {
-                    debugLog(`❌ 录音播放失败: ${error.message}`);
                     voiceLabel.textContent = '听录音';
                     voiceBtn.disabled = false;
-                    alert('录音文件加载失败，请确认音频文件已上传到正确位置');
+                    alert('录音文件加载失败，请确认音频文件已上传');
                 });
             }
         });
 
-        // ----- 录音播放结束自动恢复音乐音量 -----
         voiceRecord.addEventListener('ended', function() {
-            debugLog('⏹️ 录音播放结束');
             isVoicePlaying = false;
             voiceLabel.textContent = '听录音';
             voiceBtn.classList.remove('recording');
             voiceBtn.disabled = false;
             if (isMusicPlaying) {
                 setMusicVolume(MUSIC_VOLUME_NORMAL);
-                debugLog(`🔊 音量恢复至 ${Math.round(MUSIC_VOLUME_NORMAL * 100)}%`);
             }
         });
 
-        // ----- 预加载所有图片 -----
+        // ===== 预加载图片 =====
         function preloadAllImages() {
-            debugLog('🔄 开始预加载 ' + TOTAL + ' 张图片...');
             let loadedCount = 0;
-            
             for (let i = 0; i < TOTAL; i++) {
                 const img = new Image();
-                img.onload = function() {
-                    loadedCount++;
-                    if (loadedCount === TOTAL) {
-                        debugLog('✅ 所有图片预加载完成！');
-                    }
-                };
-                img.onerror = function() {
-                    loadedCount++;
-                    if (loadedCount === TOTAL) {
-                        debugLog('✅ 所有图片加载完成（部分失败）');
-                    }
-                };
+                img.onload = function() { loadedCount++; };
+                img.onerror = function() { loadedCount++; };
                 img.src = getPhotoUrl(i);
             }
         }
 
-        // ----- 照片更新 -----
+        // ===== 更新显示 =====
         function updateDisplay(index) {
             if (index < 0) index = 0;
             if (index >= TOTAL) index = TOTAL - 1;
@@ -1235,9 +1164,9 @@
             burstHearts(65);
         }
 
-        // ----- 初始化 -----
+        // ===== 初始化 =====
         function init() {
-            debugLog('🔧 初始化开始');
+            debugLog('🔧 初始化');
             updateDisplay(0);
             preloadAllImages();
             startProgressBar();
@@ -1246,10 +1175,9 @@
             readyNo.addEventListener('click', reloadPage);
 
             setTimeout(() => burstHearts(35), 500);
-            debugLog('✅ 初始化完成');
         }
 
-        // ----- 绑定按钮事件 -----
+        // ===== 绑定事件 =====
         prevBtn.addEventListener('click', prevPhoto);
         nextBtn.addEventListener('click', nextPhoto);
         shuffleBtn.addEventListener('click', shufflePhoto);
@@ -1263,13 +1191,12 @@
         });
 
         mainPhoto.addEventListener('error', function() {
-            const parent = this.parentNode;
-            if (parent.querySelector('.placeholder-icon')) return;
+            if (this.parentNode.querySelector('.placeholder-icon')) return;
             const placeholder = document.createElement('div');
             placeholder.className = 'placeholder-icon';
             placeholder.innerHTML = '<i class="fas fa-heart" style="font-size: 3.5rem; opacity: 0.6;"></i>';
             this.style.display = 'none';
-            parent.appendChild(placeholder);
+            this.parentNode.appendChild(placeholder);
         });
 
         init();
@@ -1277,8 +1204,8 @@
         window.addEventListener('beforeunload', function() {
             if (autoPlayInterval) clearInterval(autoPlayInterval);
             if (progressInterval) clearInterval(progressInterval);
-            if (audioContext) {
-                try { audioContext.close(); } catch(e) {}
+            if (audioCtx) {
+                try { audioCtx.close(); } catch(e) {}
             }
         });
     })();
