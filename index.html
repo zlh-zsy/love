@@ -292,101 +292,210 @@
             font-size: 4rem;
         }
 
-        /* ===== 启动覆盖层 ===== */
+        /* ===== 覆盖层样式 ===== */
         #startOverlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(255, 200, 210, 0.92);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            background: radial-gradient(circle at center, #fce4ec 0%, #f8bbd0 100%);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 10000;
-            cursor: pointer;
             font-family: 'Segoe UI', 'Poppins', sans-serif;
-            transition: opacity 0.8s ease, transform 0.8s ease;
+            transition: opacity 0.9s ease, transform 0.9s ease;
         }
         #startOverlay.hidden {
             opacity: 0;
             pointer-events: none;
             transform: scale(1.05);
         }
-        #startOverlay .big-heart {
+        .overlay-content {
+            text-align: center;
+            padding: 20px;
+            animation: float-up 1.2s ease-out;
+        }
+        @keyframes float-up {
+            0% { opacity: 0; transform: translateY(30px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .big-heart-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .big-heart {
             font-size: 5rem;
             color: #d63e6b;
             animation: pulse-heart 1.5s infinite;
+            position: relative;
+            z-index: 2;
         }
-        #startOverlay .title {
+        .heart-pulse-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(214, 62, 107, 0.15);
+            transform: translate(-50%, -50%) scale(1);
+            animation: ring-pulse 2s infinite ease-out;
+            z-index: 1;
+        }
+        @keyframes ring-pulse {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+        }
+        .title {
             color: #7a2a4a;
             font-size: 2.8rem;
             font-weight: 700;
-            margin-top: 16px;
+            margin-top: 4px;
             letter-spacing: 2px;
         }
-        
-        /* ===== I LOVE YOU FOREVER - 红色心跳文字 ===== */
-        #startOverlay .sub {
+        .sub {
             color: #ff1744;
             font-size: 2.0rem;
             font-weight: 700;
-            margin-top: 10px;
+            margin-top: 6px;
             letter-spacing: 3px;
-            text-shadow: 0 0 40px rgba(255, 23, 68, 0.4);
+            text-shadow: 0 0 40px rgba(255, 23, 68, 0.3);
             animation: heartbeat-text 1.2s ease-in-out infinite;
             display: inline-block;
         }
-        
-        /* 心跳动画：放大 + 缩小 + 发光 */
         @keyframes heartbeat-text {
-            0% {
-                transform: scale(1);
-                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
-            }
-            14% {
-                transform: scale(1.25);
-                text-shadow: 0 0 60px rgba(255, 23, 68, 0.7), 0 0 100px rgba(255, 23, 68, 0.3);
-            }
-            28% {
-                transform: scale(1);
-                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
-            }
-            42% {
-                transform: scale(1.2);
-                text-shadow: 0 0 50px rgba(255, 23, 68, 0.6), 0 0 80px rgba(255, 23, 68, 0.2);
-            }
-            56% {
-                transform: scale(1);
-                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
-            }
-            100% {
-                transform: scale(1);
-                text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
-            }
+            0% { transform: scale(1); text-shadow: 0 0 20px rgba(255, 23, 68, 0.3); }
+            14% { transform: scale(1.25); text-shadow: 0 0 60px rgba(255, 23, 68, 0.7), 0 0 100px rgba(255, 23, 68, 0.3); }
+            28% { transform: scale(1); text-shadow: 0 0 20px rgba(255, 23, 68, 0.3); }
+            42% { transform: scale(1.2); text-shadow: 0 0 50px rgba(255, 23, 68, 0.6), 0 0 80px rgba(255, 23, 68, 0.2); }
+            56% { transform: scale(1); text-shadow: 0 0 20px rgba(255, 23, 68, 0.3); }
+            100% { transform: scale(1); text-shadow: 0 0 20px rgba(255, 23, 68, 0.3); }
         }
 
-        #startOverlay .hint {
-            color: #d63e6b;
-            font-size: 1.8rem;
+        /* ===== 进度条样式 ===== */
+        .loading-progress {
             margin-top: 30px;
-            animation: bounce-down 1.5s infinite;
+            width: 220px;
+            margin-left: auto;
+            margin-right: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
         }
-        @keyframes bounce-down {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(12px); }
+        .progress-track {
+            width: 100%;
+            height: 4px;
+            background: rgba(200, 120, 140, 0.25);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-bar-overlay {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #e8436e, #f28b9e);
+            border-radius: 4px;
+            transition: width 0.1s linear;
+        }
+        .progress-text {
+            font-size: 0.9rem;
+            color: #7a2a4a;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        /* ===== 准备弹窗 ===== */
+        #readyModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+            font-family: 'Segoe UI', 'Poppins', sans-serif;
+        }
+        #readyModal.show {
+            display: flex;
+        }
+        .modal-box {
+            background: rgba(255, 240, 245, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 48px;
+            padding: 40px 48px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 30px 80px rgba(180, 60, 100, 0.3);
+            border: 1px solid rgba(255, 200, 210, 0.4);
+            animation: float-up 0.6s ease-out;
+        }
+        .modal-box .modal-icon {
+            font-size: 3.5rem;
+            color: #d63e6b;
+            margin-bottom: 12px;
+            animation: pulse-heart 1.5s infinite;
+        }
+        .modal-box h2 {
+            color: #7a2a4a;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .modal-box p {
+            color: #7a2a4a;
+            font-size: 1.0rem;
+            opacity: 0.8;
+            margin-bottom: 24px;
+        }
+        .modal-btns {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .modal-btn {
+            padding: 12px 36px;
+            border-radius: 60px;
+            font-size: 1.0rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: inherit;
+        }
+        .modal-btn.primary {
+            background: #e8436e;
+            color: white;
+            box-shadow: 0 8px 28px rgba(220, 60, 100, 0.3);
+        }
+        .modal-btn.primary:hover {
+            background: #d63b63;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 36px rgba(200, 50, 80, 0.4);
+        }
+        .modal-btn.secondary {
+            background: rgba(200, 120, 140, 0.15);
+            color: #7a2a4a;
+            border: 1px solid rgba(200, 120, 140, 0.2);
+        }
+        .modal-btn.secondary:hover {
+            background: rgba(200, 120, 140, 0.25);
+            transform: translateY(-2px);
         }
         @media (max-width: 600px) {
-            #startOverlay .title { font-size: 2rem; }
-            #startOverlay .big-heart { font-size: 3.5rem; }
-            #startOverlay .sub { font-size: 1.5rem; }
-            #startOverlay .hint { font-size: 1.4rem; }
-        }
-        @media (max-width: 420px) {
-            #startOverlay .sub { font-size: 1.2rem; letter-spacing: 2px; }
+            .modal-box { padding: 32px 24px; }
+            .modal-box h2 { font-size: 1.5rem; }
+            .modal-btn { padding: 10px 28px; font-size: 0.9rem; }
         }
 
         /* ===== 加载状态 ===== */
@@ -416,14 +525,37 @@
 
 <!-- ===== 启动覆盖层 ===== -->
 <div id="startOverlay">
-    <i class="fas fa-heart big-heart"></i>
-    <div class="title">💖 送给 ZSY</div>
-    <div class="sub">I LOVE YOU FOREVER</div>
-    <div class="hint">👇 点击开始</div>
+    <div class="overlay-content">
+        <div class="big-heart-wrapper">
+            <i class="fas fa-heart big-heart"></i>
+            <div class="heart-pulse-ring"></div>
+        </div>
+        <div class="title">💖 送给 ZSY</div>
+        <div class="sub">I LOVE YOU FOREVER</div>
+        <div class="loading-progress" id="loadingProgress">
+            <div class="progress-track">
+                <div class="progress-bar-overlay" id="progressBarOverlay" style="width: 0%;"></div>
+            </div>
+            <span class="progress-text" id="progressText">加载中 0%</span>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 准备弹窗 ===== -->
+<div id="readyModal">
+    <div class="modal-box">
+        <div class="modal-icon">💝</div>
+        <h2>准备好了吗？</h2>
+        <p>我已经准备好把这份心意 💖 全部给你</p>
+        <div class="modal-btns">
+            <button class="modal-btn primary" id="readyYes">✨ 准备好了</button>
+            <button class="modal-btn secondary" id="readyNo">⏳ 再等等</button>
+        </div>
+    </div>
 </div>
 
 <!-- ===== 主要内容 ===== -->
-<div class="card">
+<div class="card" id="mainCard" style="display:none;">
     <div class="header">
         <h1>
             <i class="fas fa-heart"></i>
@@ -481,6 +613,7 @@
         "use strict";
 
         const TOTAL = 52;
+        const LOADING_DURATION = 10000; // 进度条持续 10 秒
 
         function getPhotoUrl(index) {
             return `https://cdn.jsdelivr.net/gh/zlh-zsy/love/zsy/${index + 1}.jpg`;
@@ -562,6 +695,12 @@
         const bgMusic = document.getElementById('bgMusic');
 
         const startOverlay = document.getElementById('startOverlay');
+        const progressBarOverlay = document.getElementById('progressBarOverlay');
+        const progressText = document.getElementById('progressText');
+        const readyModal = document.getElementById('readyModal');
+        const readyYes = document.getElementById('readyYes');
+        const readyNo = document.getElementById('readyNo');
+        const mainCard = document.getElementById('mainCard');
 
         let currentIndex = 0;
         let isPlaying = false;
@@ -570,6 +709,7 @@
         let isMusicPlaying = false;
         let musicReady = false;
         let isStarted = false;
+        let progressInterval = null;
 
         // ----- 爱心特效 -----
         function burstHearts(count = 60) {
@@ -596,11 +736,53 @@
             }
         }
 
-        // ----- 启动（用户点击覆盖层） -----
-        function startApp() {
+        // ----- 启动进度条（10秒匀速走完） -----
+        function startProgressBar() {
+            let startTime = Date.now();
+            let currentProgress = 0;
+
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+
+            progressInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                // 计算进度：0% ~ 100%，10秒走完
+                let progress = Math.min((elapsed / LOADING_DURATION) * 100, 100);
+                // 最后1%稍微慢一点，看起来更自然
+                if (progress > 99) progress = 100;
+                
+                progressBarOverlay.style.width = progress + '%';
+                progressText.textContent = `加载中 ${Math.round(progress)}%`;
+
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                    // 进度完成，弹出弹窗
+                    setTimeout(() => {
+                        readyModal.classList.add('show');
+                        burstHearts(50);
+                    }, 300);
+                }
+            }, 50);
+        }
+
+        // ----- 进入主页面 -----
+        function enterMainPage() {
             if (isStarted) return;
             isStarted = true;
 
+            readyModal.classList.remove('show');
+
+            // 爆裂爱心
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => burstHearts(80), i * 150);
+            }
+
+            // 显示主页面
+            mainCard.style.display = 'block';
+            
             // 播放音乐
             bgMusic.volume = 0.5;
             bgMusic.loop = true;
@@ -617,9 +799,19 @@
             // 隐藏覆盖层
             startOverlay.classList.add('hidden');
             
-            // 大量爱心庆祝
-            setTimeout(() => burstHearts(100), 200);
-            setTimeout(() => burstHearts(80), 400);
+            setTimeout(() => burstHearts(100), 400);
+        }
+
+        // ----- 重新加载 -----
+        function reloadPage() {
+            readyModal.classList.remove('show');
+            // 重置进度条
+            progressBarOverlay.style.width = '0%';
+            progressText.textContent = '加载中 0%';
+            // 重新开始进度条
+            startProgressBar();
+            // 重新预加载图片
+            preloadAllImages();
         }
 
         // ----- 音乐开关 -----
@@ -638,10 +830,11 @@
             burstHearts(40);
         }
 
-        // ----- 预加载所有图片 -----
+        // ----- 预加载所有图片（静默后台加载） -----
         function preloadAllImages() {
             console.log('🔄 开始预加载 ' + TOTAL + ' 张图片...');
             let loadedCount = 0;
+            
             for (let i = 0; i < TOTAL; i++) {
                 const img = new Image();
                 img.onload = function() {
@@ -653,6 +846,9 @@
                 img.onerror = function() {
                     loadedCount++;
                     console.warn('⚠️ 图片加载失败: ' + (i + 1) + '.jpg');
+                    if (loadedCount === TOTAL) {
+                        console.log('✅ 所有图片加载完成（部分失败）');
+                    }
                 };
                 img.src = getPhotoUrl(i);
             }
@@ -664,13 +860,10 @@
             if (index >= TOTAL) index = TOTAL - 1;
             currentIndex = index;
 
-            // 显示加载状态
             photoContainer.classList.add('loading');
             
-            // 预加载当前图片
             const img = new Image();
             img.onload = function() {
-                // 图片加载完成，更新 src
                 mainPhoto.src = getPhotoUrl(index);
                 mainPhoto.style.animation = 'none';
                 void mainPhoto.offsetHeight;
@@ -678,7 +871,6 @@
                 photoContainer.classList.remove('loading');
             };
             img.onerror = function() {
-                // 加载失败也移除加载状态，显示占位
                 mainPhoto.src = getPhotoUrl(index);
                 photoContainer.classList.remove('loading');
             };
@@ -748,8 +940,11 @@
         function init() {
             updateDisplay(0);
             
-            // ===== 预加载所有图片 =====
+            // 静默预加载所有图片
             preloadAllImages();
+            
+            // 启动进度条（10秒）
+            startProgressBar();
             
             if (playInterval) {
                 clearInterval(playInterval);
@@ -761,9 +956,9 @@
                 playBtn.classList.remove('primary');
             }
             
-            // 绑定启动事件
-            startOverlay.addEventListener('click', startApp);
-            startOverlay.addEventListener('touchstart', startApp);
+            // 弹窗按钮事件
+            readyYes.addEventListener('click', enterMainPage);
+            readyNo.addEventListener('click', reloadPage);
 
             // 先显示爱心
             setTimeout(() => burstHearts(35), 500);
@@ -786,7 +981,6 @@
 
         mainPhoto.addEventListener('error', function() {
             const parent = this.parentNode;
-            // 检查是否已存在占位，避免重复添加
             if (parent.querySelector('.placeholder-icon')) return;
             const placeholder = document.createElement('div');
             placeholder.className = 'placeholder-icon';
@@ -799,6 +993,7 @@
 
         window.addEventListener('beforeunload', function() {
             if (playInterval) clearInterval(playInterval);
+            if (progressInterval) clearInterval(progressInterval);
         });
     })();
 </script>
