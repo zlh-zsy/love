@@ -519,6 +519,21 @@
             box-shadow: 0 4px 20px rgba(180, 60, 100, 0.12);
             animation: pulse-heart 1.2s infinite;
         }
+
+        /* ===== 录音按钮播放状态 ===== */
+        .ctrl-btn.recording {
+            background: #e8436e;
+            color: white;
+            animation: pulse-recording 1.2s infinite;
+        }
+        .ctrl-btn.recording i {
+            color: white;
+        }
+        @keyframes pulse-recording {
+            0% { box-shadow: 0 0 0 0 rgba(232, 67, 110, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(232, 67, 110, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(232, 67, 110, 0); }
+        }
     </style>
 </head>
 <body>
@@ -590,22 +605,28 @@
 
         <div class="btn-group">
             <button class="ctrl-btn" id="prevBtn"><i class="fas fa-chevron-left"></i> 上一张</button>
-            <button class="ctrl-btn primary" id="playBtn"><i class="fas fa-play"></i> 播放</button>
             <button class="ctrl-btn" id="nextBtn">下一张 <i class="fas fa-chevron-right"></i></button>
         </div>
         <div class="btn-group" style="margin-top: 4px;">
             <button class="ctrl-btn" id="shuffleBtn"><i class="fas fa-random"></i> 随机</button>
             <button class="ctrl-btn" id="resetBtn"><i class="fas fa-undo-alt"></i> 第一张</button>
             <button class="music-btn" id="musicToggle"><i class="fas fa-music"></i> <span id="musicLabel">播放中</span></button>
+            <button class="ctrl-btn" id="voiceBtn"><i class="fas fa-microphone"></i> 听录音</button>
         </div>
     </div>
 </div>
 
 <div id="heartContainer"></div>
 
+<!-- ===== 音频资源 ===== -->
 <!-- 背景音乐 -->
-<audio id="bgMusic" loop preload="auto" crossorigin="anonymous">
+<audio id="bgMusic" loop preload="auto" autoplay muted>
     <source src="manman.mp3" type="audio/mp3">
+</audio>
+
+<!-- 告白录音 -->
+<audio id="voiceRecord" preload="auto">
+    <source src="zsy.m4a" type="audio/mp3">
 </audio>
 
 <script>
@@ -613,7 +634,7 @@
         "use strict";
 
         const TOTAL = 52;
-        const LOADING_DURATION = 10000; // 进度条持续 10 秒
+        const LOADING_DURATION = 10000;
 
         function getPhotoUrl(index) {
             return `https://cdn.jsdelivr.net/gh/zlh-zsy/love/zsy/${index + 1}.jpg`;
@@ -687,7 +708,6 @@
 
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
-        const playBtn = document.getElementById('playBtn');
         const shuffleBtn = document.getElementById('shuffleBtn');
         const resetBtn = document.getElementById('resetBtn');
         const musicToggle = document.getElementById('musicToggle');
@@ -702,14 +722,20 @@
         const readyNo = document.getElementById('readyNo');
         const mainCard = document.getElementById('mainCard');
 
+        const voiceRecord = document.getElementById('voiceRecord');
+        const voiceBtn = document.getElementById('voiceBtn');
+
         let currentIndex = 0;
-        let isPlaying = false;
-        let playInterval = null;
-        const INTERVAL_MS = 5000;
         let isMusicPlaying = false;
         let musicReady = false;
         let isStarted = false;
         let progressInterval = null;
+        let isVoicePlaying = false;
+        let voiceAutoPlayed = false; // 防止重复自动播放
+
+        // ===== 自动轮播相关 =====
+        let autoPlayInterval = null;
+        const AUTO_INTERVAL_MS = 5000;
 
         // ----- 爱心特效 -----
         function burstHearts(count = 60) {
@@ -736,10 +762,9 @@
             }
         }
 
-        // ----- 启动进度条（10秒匀速走完） -----
+        // ----- 启动进度条 -----
         function startProgressBar() {
             let startTime = Date.now();
-            let currentProgress = 0;
 
             if (progressInterval) {
                 clearInterval(progressInterval);
@@ -748,9 +773,7 @@
 
             progressInterval = setInterval(() => {
                 const elapsed = Date.now() - startTime;
-                // 计算进度：0% ~ 100%，10秒走完
                 let progress = Math.min((elapsed / LOADING_DURATION) * 100, 100);
-                // 最后1%稍微慢一点，看起来更自然
                 if (progress > 99) progress = 100;
                 
                 progressBarOverlay.style.width = progress + '%';
@@ -759,13 +782,31 @@
                 if (progress >= 100) {
                     clearInterval(progressInterval);
                     progressInterval = null;
-                    // 进度完成，弹出弹窗
                     setTimeout(() => {
                         readyModal.classList.add('show');
                         burstHearts(50);
                     }, 300);
                 }
             }, 50);
+        }
+
+        // ----- 启动自动轮播 -----
+        function startAutoPlay() {
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+            }
+            autoPlayInterval = setInterval(() => {
+                updateDisplay((currentIndex + 1) % TOTAL);
+                burstHearts(35);
+            }, AUTO_INTERVAL_MS);
+        }
+
+        function stopAutoPlay() {
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+            }
         }
 
         // ----- 进入主页面 -----
@@ -775,16 +816,18 @@
 
             readyModal.classList.remove('show');
 
-            // 爆裂爱心
             for (let i = 0; i < 3; i++) {
                 setTimeout(() => burstHearts(80), i * 150);
             }
 
-            // 显示主页面
             mainCard.style.display = 'block';
             
-            // 播放音乐
-            bgMusic.volume = 0.5;
+            // 启动自动轮播
+            startAutoPlay();
+            
+            // 背景音乐 - 取消静音并播放
+            bgMusic.muted = false;
+            bgMusic.volume = 0.35;
             bgMusic.loop = true;
             bgMusic.play().then(() => {
                 musicReady = true;
@@ -796,7 +839,24 @@
                 musicLabel.textContent = '点击播放';
             });
 
-            // 隐藏覆盖层
+            // ===== 自动播放录音 =====
+            if (!voiceAutoPlayed) {
+                voiceAutoPlayed = true;
+                voiceRecord.play().then(() => {
+                    isVoicePlaying = true;
+                    voiceBtn.innerHTML = '<i class="fas fa-stop"></i> 停止';
+                    voiceBtn.classList.add('recording');
+                    // 播放录音时降低背景音乐音量
+                    if (isMusicPlaying) {
+                        bgMusic.volume = 0.35;
+                    }
+                    console.log('✅ 录音自动播放成功');
+                }).catch((error) => {
+                    console.warn('⚠️ 录音自动播放失败:', error);
+                    // 如果自动播放失败，用户仍然可以手动点击播放
+                });
+            }
+
             startOverlay.classList.add('hidden');
             
             setTimeout(() => burstHearts(100), 400);
@@ -805,18 +865,17 @@
         // ----- 重新加载 -----
         function reloadPage() {
             readyModal.classList.remove('show');
-            // 重置进度条
             progressBarOverlay.style.width = '0%';
             progressText.textContent = '加载中 0%';
-            // 重新开始进度条
+            voiceAutoPlayed = false; // 重置标记
             startProgressBar();
-            // 重新预加载图片
             preloadAllImages();
         }
 
         // ----- 音乐开关 -----
         function toggleMusic() {
             if (bgMusic.paused) {
+                bgMusic.volume = 0.35;
                 bgMusic.play().then(() => {
                     isMusicPlaying = true;
                     musicReady = true;
@@ -830,7 +889,42 @@
             burstHearts(40);
         }
 
-        // ----- 预加载所有图片（静默后台加载） -----
+        // ----- 录音控制 -----
+        voiceBtn.addEventListener('click', function() {
+            if (isVoicePlaying) {
+                voiceRecord.pause();
+                voiceRecord.currentTime = 0;
+                isVoicePlaying = false;
+                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i> 听录音';
+                voiceBtn.classList.remove('recording');
+                if (isMusicPlaying) {
+                    bgMusic.volume = 0.35;
+                }
+            } else {
+                voiceRecord.play().then(() => {
+                    isVoicePlaying = true;
+                    voiceBtn.innerHTML = '<i class="fas fa-stop"></i> 停止';
+                    voiceBtn.classList.add('recording');
+                    if (isMusicPlaying) {
+                        bgMusic.volume = 0.35;
+                    }
+                }).catch((error) => {
+                    console.warn('⚠️ 录音播放失败:', error);
+                    alert('录音文件加载失败，请确认 zsy.m4a 文件已上传到正确位置');
+                });
+            }
+        });
+
+        voiceRecord.addEventListener('ended', function() {
+            isVoicePlaying = false;
+            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i> 听录音';
+            voiceBtn.classList.remove('recording');
+            if (isMusicPlaying) {
+                bgMusic.volume = 0.35;
+            }
+        });
+
+        // ----- 预加载所有图片 -----
         function preloadAllImages() {
             console.log('🔄 开始预加载 ' + TOTAL + ' 张图片...');
             let loadedCount = 0;
@@ -885,51 +979,31 @@
         }
 
         function prevPhoto() {
-            if (isPlaying) togglePlay();
+            stopAutoPlay();
             updateDisplay((currentIndex - 1 + TOTAL) % TOTAL);
+            startAutoPlay();
             burstHearts(55);
         }
 
         function nextPhoto() {
-            if (isPlaying) togglePlay();
+            stopAutoPlay();
             updateDisplay((currentIndex + 1) % TOTAL);
+            startAutoPlay();
             burstHearts(55);
         }
 
         function shufflePhoto() {
-            if (isPlaying) togglePlay();
+            stopAutoPlay();
             updateDisplay(Math.floor(Math.random() * TOTAL));
+            startAutoPlay();
             burstHearts(70);
         }
 
         function resetToFirst() {
-            if (isPlaying) togglePlay();
+            stopAutoPlay();
             updateDisplay(0);
+            startAutoPlay();
             burstHearts(60);
-        }
-
-        function togglePlay() {
-            if (isPlaying) {
-                clearInterval(playInterval);
-                playInterval = null;
-                isPlaying = false;
-                playBtn.innerHTML = '<i class="fas fa-play"></i> 播放';
-                playBtn.style.background = '';
-                playBtn.style.color = '';
-                playBtn.classList.remove('primary');
-            } else {
-                isPlaying = true;
-                playBtn.innerHTML = '<i class="fas fa-pause"></i> 暂停';
-                playBtn.style.background = '#d63b63';
-                playBtn.style.color = 'white';
-                playBtn.classList.add('primary');
-                if (currentIndex === TOTAL - 1) updateDisplay(0);
-                playInterval = setInterval(() => {
-                    updateDisplay((currentIndex + 1) % TOTAL);
-                    burstHearts(35);
-                }, INTERVAL_MS);
-            }
-            burstHearts(50);
         }
 
         function handlePhotoClick() {
@@ -940,34 +1014,19 @@
         function init() {
             updateDisplay(0);
             
-            // 静默预加载所有图片
             preloadAllImages();
             
-            // 启动进度条（10秒）
             startProgressBar();
             
-            if (playInterval) {
-                clearInterval(playInterval);
-                playInterval = null;
-                isPlaying = false;
-                playBtn.innerHTML = '<i class="fas fa-play"></i> 播放';
-                playBtn.style.background = '';
-                playBtn.style.color = '';
-                playBtn.classList.remove('primary');
-            }
-            
-            // 弹窗按钮事件
             readyYes.addEventListener('click', enterMainPage);
             readyNo.addEventListener('click', reloadPage);
 
-            // 先显示爱心
             setTimeout(() => burstHearts(35), 500);
         }
 
         // ----- 绑定按钮事件 -----
         prevBtn.addEventListener('click', prevPhoto);
         nextBtn.addEventListener('click', nextPhoto);
-        playBtn.addEventListener('click', togglePlay);
         shuffleBtn.addEventListener('click', shufflePhoto);
         resetBtn.addEventListener('click', resetToFirst);
         musicToggle.addEventListener('click', toggleMusic);
@@ -976,7 +1035,6 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowLeft') { e.preventDefault(); prevPhoto(); }
             else if (e.key === 'ArrowRight') { e.preventDefault(); nextPhoto(); }
-            else if (e.key === ' ' || e.key === 'Space') { e.preventDefault(); togglePlay(); }
         });
 
         mainPhoto.addEventListener('error', function() {
@@ -992,7 +1050,7 @@
         init();
 
         window.addEventListener('beforeunload', function() {
-            if (playInterval) clearInterval(playInterval);
+            if (autoPlayInterval) clearInterval(autoPlayInterval);
             if (progressInterval) clearInterval(progressInterval);
         });
     })();
