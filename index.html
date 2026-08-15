@@ -610,8 +610,8 @@
         <div class="btn-group" style="margin-top: 4px;">
             <button class="ctrl-btn" id="shuffleBtn"><i class="fas fa-random"></i> 随机</button>
             <button class="ctrl-btn" id="resetBtn"><i class="fas fa-undo-alt"></i> 第一张</button>
-            <button class="music-btn" id="musicToggle"><i class="fas fa-music"></i> <span id="musicLabel">播放中</span></button>
-            <button class="ctrl-btn" id="voiceBtn"><i class="fas fa-microphone"></i> 听录音</button>
+            <button class="music-btn" id="musicToggle"><i class="fas fa-music"></i> <span id="musicLabel">加载中...</span></button>
+            <button class="ctrl-btn" id="voiceBtn"><i class="fas fa-microphone"></i> <span id="voiceLabel">听录音</span></button>
         </div>
     </div>
 </div>
@@ -620,7 +620,7 @@
 
 <!-- ===== 音频资源 ===== -->
 <!-- 背景音乐 -->
-<audio id="bgMusic" loop preload="auto" autoplay muted>
+<audio id="bgMusic" loop preload="auto">
     <source src="manman.mp3" type="audio/mp3">
 </audio>
 
@@ -724,14 +724,16 @@
 
         const voiceRecord = document.getElementById('voiceRecord');
         const voiceBtn = document.getElementById('voiceBtn');
+        const voiceLabel = document.getElementById('voiceLabel');
 
         let currentIndex = 0;
         let isMusicPlaying = false;
-        let musicReady = false;
         let isStarted = false;
         let progressInterval = null;
         let isVoicePlaying = false;
-        let voiceAutoPlayed = false; // 防止重复自动播放
+        let audioReady = false;
+        let playAttempts = 0;
+        const MAX_PLAY_ATTEMPTS = 5;
 
         // ===== 自动轮播相关 =====
         let autoPlayInterval = null;
@@ -809,6 +811,38 @@
             }
         }
 
+        // ----- 尝试播放音频（带重试机制） -----
+        function playAudioWithRetry(audioElement, onSuccess, onError, maxAttempts = MAX_PLAY_ATTEMPTS) {
+            let attempts = 0;
+            
+            function tryPlay() {
+                attempts++;
+                audioElement.play().then(() => {
+                    if (onSuccess) onSuccess();
+                }).catch((error) => {
+                    console.warn(`⚠️ 播放尝试 ${attempts}/${maxAttempts} 失败:`, error);
+                    if (attempts < maxAttempts) {
+                        // 等待后重试
+                        setTimeout(tryPlay, 500 * attempts);
+                    } else {
+                        if (onError) onError(error);
+                    }
+                });
+            }
+            
+            // 检查音频是否已加载
+            if (audioElement.readyState >= 2) {
+                tryPlay();
+            } else {
+                audioElement.addEventListener('canplaythrough', function onCanPlay() {
+                    audioElement.removeEventListener('canplaythrough', onCanPlay);
+                    tryPlay();
+                });
+                // 设置超时，如果加载太慢也尝试播放
+                setTimeout(tryPlay, 2000);
+            }
+        }
+
         // ----- 进入主页面 -----
         function enterMainPage() {
             if (isStarted) return;
@@ -825,37 +859,44 @@
             // 启动自动轮播
             startAutoPlay();
             
-            // 背景音乐 - 取消静音并播放
-            bgMusic.muted = false;
+            // ===== 播放背景音乐 =====
+            musicLabel.textContent = '加载中...';
             bgMusic.volume = 0.35;
             bgMusic.loop = true;
-            bgMusic.play().then(() => {
-                musicReady = true;
-                isMusicPlaying = true;
-                musicLabel.textContent = '播放中';
-                console.log('✅ 音乐播放成功');
-            }).catch((error) => {
-                console.warn('⚠️ 音乐播放失败:', error);
-                musicLabel.textContent = '点击播放';
-            });
+            
+            playAudioWithRetry(
+                bgMusic,
+                function() {
+                    isMusicPlaying = true;
+                    musicLabel.textContent = '播放中';
+                    console.log('✅ 音乐播放成功');
+                },
+                function(error) {
+                    console.warn('⚠️ 音乐播放失败:', error);
+                    musicLabel.textContent = '点击播放';
+                }
+            );
 
             // ===== 自动播放录音 =====
-            if (!voiceAutoPlayed) {
-                voiceAutoPlayed = true;
-                voiceRecord.play().then(() => {
+            voiceLabel.textContent = '加载中...';
+            voiceBtn.disabled = true;
+            
+            playAudioWithRetry(
+                voiceRecord,
+                function() {
                     isVoicePlaying = true;
-                    voiceBtn.innerHTML = '<i class="fas fa-stop"></i> 停止';
+                    voiceLabel.textContent = '停止';
                     voiceBtn.classList.add('recording');
-                    // 播放录音时降低背景音乐音量
-                    if (isMusicPlaying) {
-                        bgMusic.volume = 0.35;
-                    }
+                    voiceBtn.disabled = false;
                     console.log('✅ 录音自动播放成功');
-                }).catch((error) => {
+                },
+                function(error) {
                     console.warn('⚠️ 录音自动播放失败:', error);
+                    voiceLabel.textContent = '听录音';
+                    voiceBtn.disabled = false;
                     // 如果自动播放失败，用户仍然可以手动点击播放
-                });
-            }
+                }
+            );
 
             startOverlay.classList.add('hidden');
             
@@ -867,9 +908,20 @@
             readyModal.classList.remove('show');
             progressBarOverlay.style.width = '0%';
             progressText.textContent = '加载中 0%';
-            voiceAutoPlayed = false; // 重置标记
             startProgressBar();
             preloadAllImages();
+            // 重置音频状态
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
+            voiceRecord.pause();
+            voiceRecord.currentTime = 0;
+            isVoicePlaying = false;
+            voiceLabel.textContent = '听录音';
+            voiceBtn.classList.remove('recording');
+            voiceBtn.disabled = false;
+            musicLabel.textContent = '加载中...';
+            isMusicPlaying = false;
+            isStarted = false;
         }
 
         // ----- 音乐开关 -----
@@ -878,9 +930,10 @@
                 bgMusic.volume = 0.35;
                 bgMusic.play().then(() => {
                     isMusicPlaying = true;
-                    musicReady = true;
                     musicLabel.textContent = '播放中';
-                }).catch(() => {});
+                }).catch(() => {
+                    musicLabel.textContent = '点击播放';
+                });
             } else {
                 bgMusic.pause();
                 isMusicPlaying = false;
@@ -895,21 +948,26 @@
                 voiceRecord.pause();
                 voiceRecord.currentTime = 0;
                 isVoicePlaying = false;
-                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i> 听录音';
+                voiceLabel.textContent = '听录音';
                 voiceBtn.classList.remove('recording');
                 if (isMusicPlaying) {
                     bgMusic.volume = 0.35;
                 }
             } else {
+                voiceLabel.textContent = '加载中...';
+                voiceBtn.disabled = true;
                 voiceRecord.play().then(() => {
                     isVoicePlaying = true;
-                    voiceBtn.innerHTML = '<i class="fas fa-stop"></i> 停止';
+                    voiceLabel.textContent = '停止';
                     voiceBtn.classList.add('recording');
+                    voiceBtn.disabled = false;
                     if (isMusicPlaying) {
-                        bgMusic.volume = 0.35;
+                        bgMusic.volume = 0.12;
                     }
                 }).catch((error) => {
                     console.warn('⚠️ 录音播放失败:', error);
+                    voiceLabel.textContent = '听录音';
+                    voiceBtn.disabled = false;
                     alert('录音文件加载失败，请确认 zsy.m4a 文件已上传到正确位置');
                 });
             }
@@ -917,8 +975,9 @@
 
         voiceRecord.addEventListener('ended', function() {
             isVoicePlaying = false;
-            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i> 听录音';
+            voiceLabel.textContent = '听录音';
             voiceBtn.classList.remove('recording');
+            voiceBtn.disabled = false;
             if (isMusicPlaying) {
                 bgMusic.volume = 0.35;
             }
