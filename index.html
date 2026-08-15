@@ -556,64 +556,6 @@
         #debugInfo.show {
             display: block;
         }
-
-        /* ===== 音量控制样式 ===== */
-        .volume-control {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(255, 235, 240, 0.5);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            border-radius: 60px;
-            padding: 6px 18px 6px 14px;
-            border: 1px solid rgba(255, 200, 210, 0.3);
-        }
-        .volume-control i {
-            color: #d63e6b;
-            font-size: 0.9rem;
-        }
-        .volume-control input[type="range"] {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 80px;
-            height: 4px;
-            border-radius: 4px;
-            background: rgba(200, 120, 140, 0.3);
-            outline: none;
-            transition: background 0.2s;
-        }
-        .volume-control input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #e8436e;
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 2px 8px rgba(180, 60, 100, 0.3);
-        }
-        .volume-control input[type="range"]::-moz-range-thumb {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #e8436e;
-            cursor: pointer;
-            border: 2px solid white;
-        }
-        .volume-label {
-            font-size: 0.75rem;
-            color: #7a2a4a;
-            min-width: 28px;
-            text-align: center;
-            font-weight: 600;
-        }
-        @media (max-width: 500px) {
-            .volume-control input[type="range"] {
-                width: 50px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -696,16 +638,6 @@
             <button class="music-btn" id="musicToggle"><i class="fas fa-music"></i> <span id="musicLabel">加载中...</span></button>
             <button class="ctrl-btn" id="voiceBtn"><i class="fas fa-microphone"></i> <span id="voiceLabel">听录音</span></button>
         </div>
-        
-        <!-- ===== 音量控制滑块 ===== -->
-        <div class="btn-group" style="margin-top: 2px;">
-            <div class="volume-control">
-                <i class="fas fa-volume-down"></i>
-                <input type="range" id="volumeSlider" min="0" max="100" value="35">
-                <i class="fas fa-volume-up"></i>
-                <span class="volume-label" id="volumeLabel">35%</span>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -733,7 +665,7 @@
 
         // ===== 音量常量 =====
         const MUSIC_VOLUME_NORMAL = 0.35;   // 正常音乐音量
-        const MUSIC_VOLUME_LOW = 0.05;      // 录音播放时音乐音量（几乎听不到）
+        const MUSIC_VOLUME_LOW = 0.20;      // 录音播放时音乐音量（几乎听不到）
 
         // ===== 调试工具 =====
         const debugEl = document.getElementById('debugInfo');
@@ -854,9 +786,6 @@
         const voiceBtn = document.getElementById('voiceBtn');
         const voiceLabel = document.getElementById('voiceLabel');
 
-        const volumeSlider = document.getElementById('volumeSlider');
-        const volumeLabel = document.getElementById('volumeLabel');
-
         let currentIndex = 0;
         let isMusicPlaying = false;
         let isStarted = false;
@@ -864,7 +793,6 @@
         let isVoicePlaying = false;
         let autoPlayInterval = null;
         const AUTO_INTERVAL_MS = 5000;
-        let currentVolumePercent = 35;
 
         // ============================================================
         // ===== 使用 Web Audio API 控制音量（手机兼容） =====
@@ -879,7 +807,7 @@
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 gainNode = audioContext.createGain();
-                gainNode.gain.value = currentVolumePercent / 100;
+                gainNode.gain.value = MUSIC_VOLUME_NORMAL;
                 gainNode.connect(audioContext.destination);
                 isWebAudioInitialized = true;
                 debugLog('✅ Web Audio API 初始化成功');
@@ -888,7 +816,6 @@
             }
         }
 
-        // 将 audio 元素连接到 Web Audio 节点
         function connectMusicToWebAudio() {
             if (!isWebAudioInitialized || musicSource) return;
             try {
@@ -902,36 +829,25 @@
             }
         }
 
-        // 使用 Web Audio 设置音量
-        function setMusicVolumeWebAudio(percent) {
-            const p = Math.max(0, Math.min(100, percent));
-            currentVolumePercent = p;
-            
-            // 更新滑块
-            volumeSlider.value = p;
-            volumeLabel.textContent = p + '%';
-            
-            // 方法1: 使用 Web Audio API（优先）
+        function setMusicVolume(volume) {
+            const v = Math.max(0, Math.min(1, volume));
             if (gainNode) {
                 try {
-                    gainNode.gain.setTargetAtTime(p / 100, audioContext.currentTime, 0.05);
-                    debugLog(`🔊 Web Audio 音量设置为 ${p}%`);
+                    gainNode.gain.setTargetAtTime(v, audioContext.currentTime, 0.05);
+                    debugLog(`🔊 Web Audio 音量设置为 ${Math.round(v * 100)}%`);
                     return;
                 } catch (e) {
                     debugLog('⚠️ Web Audio 设置音量失败: ' + e.message);
                 }
             }
-            
-            // 方法2: 降级使用 HTML5 volume（备用）
             try {
-                bgMusic.volume = p / 100;
-                debugLog(`🔊 HTML5 volume 设置为 ${p}%`);
+                bgMusic.volume = v;
+                debugLog(`🔊 HTML5 volume 设置为 ${Math.round(v * 100)}%`);
             } catch (e) {
                 debugLog('⚠️ HTML5 volume 设置失败: ' + e.message);
             }
         }
 
-        // 尝试初始化 Web Audio（在用户点击时触发）
         function tryInitWebAudio() {
             if (!isWebAudioInitialized) {
                 initWebAudio();
@@ -939,7 +855,6 @@
             if (isWebAudioInitialized && !musicSource) {
                 connectMusicToWebAudio();
             }
-            // 唤醒 AudioContext（手机需要用户交互）
             if (audioContext && audioContext.state === 'suspended') {
                 audioContext.resume().then(() => {
                     debugLog('✅ AudioContext 已恢复');
@@ -1041,7 +956,6 @@
             isStarted = true;
             debugLog('🚪 进入主页面');
 
-            // 初始化 Web Audio（用户点击触发）
             tryInitWebAudio();
 
             readyModal.classList.remove('show');
@@ -1054,9 +968,6 @@
             
             startAutoPlay();
             
-            // 设置初始音量
-            setMusicVolumeWebAudio(35);
-            
             // ===== 播放背景音乐 =====
             debugLog('🎵 开始播放背景音乐');
             musicLabel.textContent = '加载中...';
@@ -1065,7 +976,6 @@
             bgMusic.addEventListener('loadeddata', function onLoaded() {
                 bgMusic.removeEventListener('loadeddata', onLoaded);
                 debugLog('✅ 背景音乐数据已加载');
-                // 连接 Web Audio
                 if (isWebAudioInitialized && !musicSource) {
                     connectMusicToWebAudio();
                 }
@@ -1081,12 +991,10 @@
                 function() {
                     isMusicPlaying = true;
                     musicLabel.textContent = '播放中';
-                    // 确保 Web Audio 连接
                     if (isWebAudioInitialized && !musicSource) {
                         connectMusicToWebAudio();
                     }
-                    // 应用音量
-                    setMusicVolumeWebAudio(currentVolumePercent);
+                    setMusicVolume(MUSIC_VOLUME_NORMAL);
                     debugLog('✅ 背景音乐播放成功');
                 },
                 function(error) {
@@ -1118,10 +1026,9 @@
                     voiceLabel.textContent = '停止';
                     voiceBtn.classList.add('recording');
                     voiceBtn.disabled = false;
-                    // 录音播放时，背景音乐音量调小
                     if (isMusicPlaying) {
-                        setMusicVolumeWebAudio(MUSIC_VOLUME_LOW * 100);
-                        debugLog(`🔊 录音播放，音量降至 ${MUSIC_VOLUME_LOW * 100}%`);
+                        setMusicVolume(MUSIC_VOLUME_LOW);
+                        debugLog(`🔊 录音播放，音量降至 ${Math.round(MUSIC_VOLUME_LOW * 100)}%`);
                     }
                     debugLog('✅ 录音播放成功');
                 },
@@ -1156,14 +1063,11 @@
             musicLabel.textContent = '加载中...';
             isMusicPlaying = false;
             isStarted = false;
-            // 重置 Web Audio
             if (musicSource) {
-                try {
-                    musicSource.disconnect();
-                } catch(e) {}
+                try { musicSource.disconnect(); } catch(e) {}
                 musicSource = null;
             }
-            setMusicVolumeWebAudio(35);
+            setMusicVolume(MUSIC_VOLUME_NORMAL);
         }
 
         // ----- 音乐开关 -----
@@ -1174,11 +1078,10 @@
                 if (isWebAudioInitialized && !musicSource) {
                     connectMusicToWebAudio();
                 }
-                // 如果录音正在播放，使用小音量
                 if (isVoicePlaying) {
-                    setMusicVolumeWebAudio(MUSIC_VOLUME_LOW * 100);
+                    setMusicVolume(MUSIC_VOLUME_LOW);
                 } else {
-                    setMusicVolumeWebAudio(35);
+                    setMusicVolume(MUSIC_VOLUME_NORMAL);
                 }
                 bgMusic.play().then(() => {
                     isMusicPlaying = true;
@@ -1200,20 +1103,17 @@
         // ----- 录音控制 -----
         voiceBtn.addEventListener('click', function() {
             if (isVoicePlaying) {
-                // ===== 停止录音 =====
                 debugLog('⏹️ 用户停止录音');
                 voiceRecord.pause();
                 voiceRecord.currentTime = 0;
                 isVoicePlaying = false;
                 voiceLabel.textContent = '听录音';
                 voiceBtn.classList.remove('recording');
-                // 恢复音乐音量
                 if (isMusicPlaying) {
-                    setMusicVolumeWebAudio(35);
-                    debugLog(`🔊 音量恢复至 35%`);
+                    setMusicVolume(MUSIC_VOLUME_NORMAL);
+                    debugLog(`🔊 音量恢复至 ${Math.round(MUSIC_VOLUME_NORMAL * 100)}%`);
                 }
             } else {
-                // ===== 播放录音 =====
                 debugLog('🎙️ 用户点击播放录音');
                 tryInitWebAudio();
                 voiceLabel.textContent = '加载中...';
@@ -1223,10 +1123,9 @@
                     voiceLabel.textContent = '停止';
                     voiceBtn.classList.add('recording');
                     voiceBtn.disabled = false;
-                    // 录音播放时，背景音乐音量调小
                     if (isMusicPlaying) {
-                        setMusicVolumeWebAudio(MUSIC_VOLUME_LOW * 100);
-                        debugLog(`🔊 录音播放，音量降至 ${MUSIC_VOLUME_LOW * 100}%`);
+                        setMusicVolume(MUSIC_VOLUME_LOW);
+                        debugLog(`🔊 录音播放，音量降至 ${Math.round(MUSIC_VOLUME_LOW * 100)}%`);
                     }
                     debugLog('✅ 录音播放成功');
                 }).catch((error) => {
@@ -1246,8 +1145,8 @@
             voiceBtn.classList.remove('recording');
             voiceBtn.disabled = false;
             if (isMusicPlaying) {
-                setMusicVolumeWebAudio(35);
-                debugLog(`🔊 音量恢复至 35%`);
+                setMusicVolume(MUSIC_VOLUME_NORMAL);
+                debugLog(`🔊 音量恢复至 ${Math.round(MUSIC_VOLUME_NORMAL * 100)}%`);
             }
         });
 
@@ -1336,13 +1235,7 @@
             burstHearts(65);
         }
 
-        // ===== 音量滑块事件 =====
-        volumeSlider.addEventListener('input', function() {
-            const val = parseInt(this.value);
-            setMusicVolumeWebAudio(val);
-        });
-
-        // ===== 初始化 =====
+        // ----- 初始化 -----
         function init() {
             debugLog('🔧 初始化开始');
             updateDisplay(0);
