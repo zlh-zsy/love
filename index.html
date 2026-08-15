@@ -713,14 +713,14 @@
 
 <!-- ===== 音频资源 ===== -->
 <!-- 背景音乐 -->
-<audio id="bgMusic" loop preload="auto">
+<audio id="bgMusic" loop preload="auto" crossorigin="anonymous">
     <source src="manman.mp3" type="audio/mpeg">
     <source src="manman.ogg" type="audio/ogg">
     <source src="manman.wav" type="audio/wav">
 </audio>
 
 <!-- 告白录音 -->
-<audio id="voiceRecord" preload="auto">
+<audio id="voiceRecord" preload="auto" crossorigin="anonymous">
     <source src="zsy.m4a" type="audio/mp4">
     <source src="zsy.mp3" type="audio/mpeg">
     <source src="zsy.ogg" type="audio/ogg">
@@ -732,8 +732,8 @@
         "use strict";
 
         // ===== 音量常量 =====
-        const MUSIC_VOLUME_NORMAL = 0.35;   // 正常音乐音量 (对应滑块 35%)
-        const MUSIC_VOLUME_LOW = 0.08;      // 录音播放时音乐音量
+        const MUSIC_VOLUME_NORMAL = 0.35;   // 正常音乐音量
+        const MUSIC_VOLUME_LOW = 0.05;      // 录音播放时音乐音量（几乎听不到）
 
         // ===== 调试工具 =====
         const debugEl = document.getElementById('debugInfo');
@@ -854,7 +854,6 @@
         const voiceBtn = document.getElementById('voiceBtn');
         const voiceLabel = document.getElementById('voiceLabel');
 
-        // 音量控制
         const volumeSlider = document.getElementById('volumeSlider');
         const volumeLabel = document.getElementById('volumeLabel');
 
@@ -865,54 +864,88 @@
         let isVoicePlaying = false;
         let autoPlayInterval = null;
         const AUTO_INTERVAL_MS = 5000;
-        let isVolumeControlActive = false; // 标记用户是否正在拖动滑块
-        let currentVolumePercent = 35; // 当前音量百分比
+        let currentVolumePercent = 35;
 
-        // ----- 音量控制 -----
-        function setMusicVolume(percent) {
-            // 限制范围 0-100
-            const p = Math.max(0, Math.min(100, percent));
-            const volume = p / 100;
-            bgMusic.volume = volume;
-            currentVolumePercent = p;
-            volumeSlider.value = p;
-            volumeLabel.textContent = p + '%';
-            debugLog(`🔊 音量设置为 ${p}% (${volume.toFixed(2)})`);
+        // ============================================================
+        // ===== 使用 Web Audio API 控制音量（手机兼容） =====
+        // ============================================================
+        let audioContext = null;
+        let gainNode = null;
+        let musicSource = null;
+        let isWebAudioInitialized = false;
+
+        function initWebAudio() {
+            if (isWebAudioInitialized) return;
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = currentVolumePercent / 100;
+                gainNode.connect(audioContext.destination);
+                isWebAudioInitialized = true;
+                debugLog('✅ Web Audio API 初始化成功');
+            } catch (e) {
+                debugLog('❌ Web Audio API 初始化失败: ' + e.message);
+            }
         }
 
-        // 滑块事件
-        volumeSlider.addEventListener('input', function() {
-            const val = parseInt(this.value);
-            setMusicVolume(val);
-            isVolumeControlActive = true;
-        });
+        // 将 audio 元素连接到 Web Audio 节点
+        function connectMusicToWebAudio() {
+            if (!isWebAudioInitialized || musicSource) return;
+            try {
+                musicSource = audioContext.createMediaElementSource(bgMusic);
+                musicSource.connect(gainNode);
+                debugLog('✅ 音乐已连接到 Web Audio');
+                return true;
+            } catch (e) {
+                debugLog('❌ 连接 Web Audio 失败: ' + e.message);
+                return false;
+            }
+        }
 
-        volumeSlider.addEventListener('change', function() {
-            isVolumeControlActive = false;
-        });
+        // 使用 Web Audio 设置音量
+        function setMusicVolumeWebAudio(percent) {
+            const p = Math.max(0, Math.min(100, percent));
+            currentVolumePercent = p;
+            
+            // 更新滑块
+            volumeSlider.value = p;
+            volumeLabel.textContent = p + '%';
+            
+            // 方法1: 使用 Web Audio API（优先）
+            if (gainNode) {
+                try {
+                    gainNode.gain.setTargetAtTime(p / 100, audioContext.currentTime, 0.05);
+                    debugLog(`🔊 Web Audio 音量设置为 ${p}%`);
+                    return;
+                } catch (e) {
+                    debugLog('⚠️ Web Audio 设置音量失败: ' + e.message);
+                }
+            }
+            
+            // 方法2: 降级使用 HTML5 volume（备用）
+            try {
+                bgMusic.volume = p / 100;
+                debugLog(`🔊 HTML5 volume 设置为 ${p}%`);
+            } catch (e) {
+                debugLog('⚠️ HTML5 volume 设置失败: ' + e.message);
+            }
+        }
 
-        // ----- 爱心特效 -----
-        function burstHearts(count = 60) {
-            const container = document.getElementById('heartContainer');
-            const colors = ['#d63e6b', '#e8436e', '#f28b9e', '#ffb3c6', '#f7a1b8', '#ff8da1', '#ff6b8a'];
-            const heartSizes = [24, 30, 36, 42, 50];
-
-            for (let i = 0; i < count; i++) {
-                const heart = document.createElement('i');
-                heart.className = 'fas fa-heart floating-heart';
-                const size = heartSizes[Math.floor(Math.random() * heartSizes.length)];
-                heart.style.fontSize = size + 'px';
-                heart.style.color = colors[Math.floor(Math.random() * colors.length)];
-                heart.style.left = (Math.random() * 92 + 4) + '%';
-                heart.style.top = (Math.random() * 92 + 4) + '%';
-                heart.style.animationDuration = (0.7 + Math.random() * 0.4) + 's';
-                heart.style.animationDelay = (Math.random() * 0.2) + 's';
-                heart.style.transform = `rotate(${Math.random() * 360}deg)`;
-                container.appendChild(heart);
-
-                setTimeout(() => {
-                    if (heart.parentNode) heart.remove();
-                }, 1200);
+        // 尝试初始化 Web Audio（在用户点击时触发）
+        function tryInitWebAudio() {
+            if (!isWebAudioInitialized) {
+                initWebAudio();
+            }
+            if (isWebAudioInitialized && !musicSource) {
+                connectMusicToWebAudio();
+            }
+            // 唤醒 AudioContext（手机需要用户交互）
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    debugLog('✅ AudioContext 已恢复');
+                }).catch((e) => {
+                    debugLog('⚠️ AudioContext 恢复失败: ' + e.message);
+                });
             }
         }
 
@@ -943,6 +976,31 @@
                     }, 300);
                 }
             }, 50);
+        }
+
+        // ----- 爱心特效 -----
+        function burstHearts(count = 60) {
+            const container = document.getElementById('heartContainer');
+            const colors = ['#d63e6b', '#e8436e', '#f28b9e', '#ffb3c6', '#f7a1b8', '#ff8da1', '#ff6b8a'];
+            const heartSizes = [24, 30, 36, 42, 50];
+
+            for (let i = 0; i < count; i++) {
+                const heart = document.createElement('i');
+                heart.className = 'fas fa-heart floating-heart';
+                const size = heartSizes[Math.floor(Math.random() * heartSizes.length)];
+                heart.style.fontSize = size + 'px';
+                heart.style.color = colors[Math.floor(Math.random() * colors.length)];
+                heart.style.left = (Math.random() * 92 + 4) + '%';
+                heart.style.top = (Math.random() * 92 + 4) + '%';
+                heart.style.animationDuration = (0.7 + Math.random() * 0.4) + 's';
+                heart.style.animationDelay = (Math.random() * 0.2) + 's';
+                heart.style.transform = `rotate(${Math.random() * 360}deg)`;
+                container.appendChild(heart);
+
+                setTimeout(() => {
+                    if (heart.parentNode) heart.remove();
+                }, 1200);
+            }
         }
 
         // ----- 启动自动轮播 -----
@@ -983,6 +1041,9 @@
             isStarted = true;
             debugLog('🚪 进入主页面');
 
+            // 初始化 Web Audio（用户点击触发）
+            tryInitWebAudio();
+
             readyModal.classList.remove('show');
 
             for (let i = 0; i < 3; i++) {
@@ -993,8 +1054,8 @@
             
             startAutoPlay();
             
-            // 初始化音量滑块为 35%
-            setMusicVolume(35);
+            // 设置初始音量
+            setMusicVolumeWebAudio(35);
             
             // ===== 播放背景音乐 =====
             debugLog('🎵 开始播放背景音乐');
@@ -1004,6 +1065,10 @@
             bgMusic.addEventListener('loadeddata', function onLoaded() {
                 bgMusic.removeEventListener('loadeddata', onLoaded);
                 debugLog('✅ 背景音乐数据已加载');
+                // 连接 Web Audio
+                if (isWebAudioInitialized && !musicSource) {
+                    connectMusicToWebAudio();
+                }
             });
             
             bgMusic.addEventListener('error', function(e) {
@@ -1016,8 +1081,12 @@
                 function() {
                     isMusicPlaying = true;
                     musicLabel.textContent = '播放中';
-                    // 应用当前音量
-                    setMusicVolume(currentVolumePercent);
+                    // 确保 Web Audio 连接
+                    if (isWebAudioInitialized && !musicSource) {
+                        connectMusicToWebAudio();
+                    }
+                    // 应用音量
+                    setMusicVolumeWebAudio(currentVolumePercent);
                     debugLog('✅ 背景音乐播放成功');
                 },
                 function(error) {
@@ -1051,9 +1120,8 @@
                     voiceBtn.disabled = false;
                     // 录音播放时，背景音乐音量调小
                     if (isMusicPlaying) {
-                        const lowVolume = Math.min(currentVolumePercent, MUSIC_VOLUME_LOW * 100);
-                        setMusicVolume(lowVolume);
-                        debugLog(`🔊 录音播放，音量降至 ${lowVolume}%`);
+                        setMusicVolumeWebAudio(MUSIC_VOLUME_LOW * 100);
+                        debugLog(`🔊 录音播放，音量降至 ${MUSIC_VOLUME_LOW * 100}%`);
                     }
                     debugLog('✅ 录音播放成功');
                 },
@@ -1088,19 +1156,29 @@
             musicLabel.textContent = '加载中...';
             isMusicPlaying = false;
             isStarted = false;
-            setMusicVolume(35);
+            // 重置 Web Audio
+            if (musicSource) {
+                try {
+                    musicSource.disconnect();
+                } catch(e) {}
+                musicSource = null;
+            }
+            setMusicVolumeWebAudio(35);
         }
 
         // ----- 音乐开关 -----
         function toggleMusic() {
             if (bgMusic.paused) {
                 debugLog('🎵 用户点击播放音乐');
+                tryInitWebAudio();
+                if (isWebAudioInitialized && !musicSource) {
+                    connectMusicToWebAudio();
+                }
                 // 如果录音正在播放，使用小音量
                 if (isVoicePlaying) {
-                    const lowVolume = Math.min(currentVolumePercent, MUSIC_VOLUME_LOW * 100);
-                    setMusicVolume(lowVolume);
+                    setMusicVolumeWebAudio(MUSIC_VOLUME_LOW * 100);
                 } else {
-                    setMusicVolume(35);
+                    setMusicVolumeWebAudio(35);
                 }
                 bgMusic.play().then(() => {
                     isMusicPlaying = true;
@@ -1129,14 +1207,15 @@
                 isVoicePlaying = false;
                 voiceLabel.textContent = '听录音';
                 voiceBtn.classList.remove('recording');
-                // 恢复音乐音量到用户设置的值
+                // 恢复音乐音量
                 if (isMusicPlaying) {
-                    setMusicVolume(35);
+                    setMusicVolumeWebAudio(35);
                     debugLog(`🔊 音量恢复至 35%`);
                 }
             } else {
                 // ===== 播放录音 =====
                 debugLog('🎙️ 用户点击播放录音');
+                tryInitWebAudio();
                 voiceLabel.textContent = '加载中...';
                 voiceBtn.disabled = true;
                 voiceRecord.play().then(() => {
@@ -1146,9 +1225,8 @@
                     voiceBtn.disabled = false;
                     // 录音播放时，背景音乐音量调小
                     if (isMusicPlaying) {
-                        const lowVolume = Math.min(currentVolumePercent, MUSIC_VOLUME_LOW * 100);
-                        setMusicVolume(lowVolume);
-                        debugLog(`🔊 录音播放，音量降至 ${lowVolume}%`);
+                        setMusicVolumeWebAudio(MUSIC_VOLUME_LOW * 100);
+                        debugLog(`🔊 录音播放，音量降至 ${MUSIC_VOLUME_LOW * 100}%`);
                     }
                     debugLog('✅ 录音播放成功');
                 }).catch((error) => {
@@ -1167,9 +1245,8 @@
             voiceLabel.textContent = '听录音';
             voiceBtn.classList.remove('recording');
             voiceBtn.disabled = false;
-            // 恢复音乐音量到用户设置的值
             if (isMusicPlaying) {
-                setMusicVolume(35);
+                setMusicVolumeWebAudio(35);
                 debugLog(`🔊 音量恢复至 35%`);
             }
         });
@@ -1259,7 +1336,13 @@
             burstHearts(65);
         }
 
-        // ----- 初始化 -----
+        // ===== 音量滑块事件 =====
+        volumeSlider.addEventListener('input', function() {
+            const val = parseInt(this.value);
+            setMusicVolumeWebAudio(val);
+        });
+
+        // ===== 初始化 =====
         function init() {
             debugLog('🔧 初始化开始');
             updateDisplay(0);
@@ -1301,6 +1384,9 @@
         window.addEventListener('beforeunload', function() {
             if (autoPlayInterval) clearInterval(autoPlayInterval);
             if (progressInterval) clearInterval(progressInterval);
+            if (audioContext) {
+                try { audioContext.close(); } catch(e) {}
+            }
         });
     })();
 </script>
