@@ -644,14 +644,14 @@
 <div id="heartContainer"></div>
 
 <!-- ===== 音频资源 ===== -->
-<!-- 背景音乐 - 增加多种格式支持 -->
+<!-- 背景音乐 -->
 <audio id="bgMusic" loop preload="auto">
     <source src="manman.mp3" type="audio/mpeg">
     <source src="manman.ogg" type="audio/ogg">
     <source src="manman.wav" type="audio/wav">
 </audio>
 
-<!-- 告白录音 - 增加多种格式支持 -->
+<!-- 告白录音 -->
 <audio id="voiceRecord" preload="auto">
     <source src="zsy.m4a" type="audio/mp4">
     <source src="zsy.mp3" type="audio/mpeg">
@@ -662,6 +662,10 @@
 <script>
     (function() {
         "use strict";
+
+        // ===== 音量常量 =====
+        const MUSIC_VOLUME_NORMAL = 0.35;   // 正常音乐音量
+        const MUSIC_VOLUME_LOW = 0.08;      // 录音播放时音乐音量（很小）
 
         // ===== 调试工具 =====
         const debugEl = document.getElementById('debugInfo');
@@ -791,45 +795,6 @@
         let autoPlayInterval = null;
         const AUTO_INTERVAL_MS = 5000;
 
-        // ----- 检查音频文件是否存在 -----
-        function checkAudioFile(audioElement, url) {
-            return new Promise((resolve) => {
-                const xhr = new XMLHttpRequest();
-                xhr.open('HEAD', url, true);
-                xhr.onload = function() {
-                    if (xhr.status === 200) {
-                        debugLog(`✅ 音频文件存在: ${url}`);
-                        resolve(true);
-                    } else {
-                        debugLog(`❌ 音频文件不存在 (${xhr.status}): ${url}`);
-                        resolve(false);
-                    }
-                };
-                xhr.onerror = function() {
-                    debugLog(`❌ 无法访问音频文件: ${url}`);
-                    resolve(false);
-                };
-                xhr.send();
-            });
-        }
-
-        // ----- 尝试播放音频（简化版） -----
-        function playAudio(audioElement, onSuccess, onError) {
-            debugLog(`🎵 尝试播放: ${audioElement.src || audioElement.querySelector('source')?.src || '未知'}`);
-            
-            // 先重置
-            audioElement.currentTime = 0;
-            
-            // 直接播放
-            audioElement.play().then(() => {
-                debugLog('✅ 播放成功');
-                if (onSuccess) onSuccess();
-            }).catch((error) => {
-                debugLog(`❌ 播放失败: ${error.name} - ${error.message}`);
-                if (onError) onError(error);
-            });
-        }
-
         // ----- 爱心特效 -----
         function burstHearts(count = 60) {
             const container = document.getElementById('heartContainer');
@@ -903,6 +868,19 @@
             }
         }
 
+        // ----- 播放音频 -----
+        function playAudio(audioElement, onSuccess, onError) {
+            debugLog(`🎵 尝试播放: ${audioElement.src || audioElement.querySelector('source')?.src || '未知'}`);
+            audioElement.currentTime = 0;
+            audioElement.play().then(() => {
+                debugLog('✅ 播放成功');
+                if (onSuccess) onSuccess();
+            }).catch((error) => {
+                debugLog(`❌ 播放失败: ${error.name} - ${error.message}`);
+                if (onError) onError(error);
+            });
+        }
+
         // ----- 进入主页面 -----
         function enterMainPage() {
             if (isStarted) return;
@@ -917,22 +895,14 @@
 
             mainCard.style.display = 'block';
             
-            // 启动自动轮播
             startAutoPlay();
             
             // ===== 播放背景音乐 =====
             debugLog('🎵 开始播放背景音乐');
             musicLabel.textContent = '加载中...';
-            bgMusic.volume = 0.35;
+            bgMusic.volume = MUSIC_VOLUME_NORMAL;
             bgMusic.loop = true;
             
-            // 显示音频源
-            const bgSources = bgMusic.querySelectorAll('source');
-            bgSources.forEach(src => {
-                debugLog(`📁 背景音乐源: ${src.src}`);
-            });
-            
-            // 检查音频是否加载
             bgMusic.addEventListener('loadeddata', function onLoaded() {
                 bgMusic.removeEventListener('loadeddata', onLoaded);
                 debugLog('✅ 背景音乐数据已加载');
@@ -961,13 +931,6 @@
             voiceLabel.textContent = '加载中...';
             voiceBtn.disabled = true;
             
-            // 显示音频源
-            const voiceSources = voiceRecord.querySelectorAll('source');
-            voiceSources.forEach(src => {
-                debugLog(`📁 录音源: ${src.src}`);
-            });
-            
-            // 检查录音是否加载
             voiceRecord.addEventListener('loadeddata', function onLoaded() {
                 voiceRecord.removeEventListener('loadeddata', onLoaded);
                 debugLog('✅ 录音数据已加载');
@@ -986,6 +949,11 @@
                     voiceLabel.textContent = '停止';
                     voiceBtn.classList.add('recording');
                     voiceBtn.disabled = false;
+                    // 录音播放时，背景音乐音量调小
+                    if (isMusicPlaying) {
+                        bgMusic.volume = MUSIC_VOLUME_LOW;
+                        debugLog(`🔊 背景音乐音量降至 ${MUSIC_VOLUME_LOW}`);
+                    }
                     debugLog('✅ 录音播放成功');
                 },
                 function(error) {
@@ -1008,7 +976,6 @@
             progressText.textContent = '加载中 0%';
             startProgressBar();
             preloadAllImages();
-            // 重置音频状态
             bgMusic.pause();
             bgMusic.currentTime = 0;
             voiceRecord.pause();
@@ -1020,13 +987,15 @@
             musicLabel.textContent = '加载中...';
             isMusicPlaying = false;
             isStarted = false;
+            bgMusic.volume = MUSIC_VOLUME_NORMAL;
         }
 
         // ----- 音乐开关 -----
         function toggleMusic() {
             if (bgMusic.paused) {
                 debugLog('🎵 用户点击播放音乐');
-                bgMusic.volume = 0.35;
+                // 如果录音正在播放，音乐保持小音量
+                bgMusic.volume = isVoicePlaying ? MUSIC_VOLUME_LOW : MUSIC_VOLUME_NORMAL;
                 bgMusic.play().then(() => {
                     isMusicPlaying = true;
                     musicLabel.textContent = '播放中';
@@ -1047,16 +1016,20 @@
         // ----- 录音控制 -----
         voiceBtn.addEventListener('click', function() {
             if (isVoicePlaying) {
+                // ===== 停止录音 =====
                 debugLog('⏹️ 用户停止录音');
                 voiceRecord.pause();
                 voiceRecord.currentTime = 0;
                 isVoicePlaying = false;
                 voiceLabel.textContent = '听录音';
                 voiceBtn.classList.remove('recording');
+                // 恢复音乐音量
                 if (isMusicPlaying) {
-                    bgMusic.volume = 0.35;
+                    bgMusic.volume = MUSIC_VOLUME_NORMAL;
+                    debugLog(`🔊 背景音乐音量恢复至 ${MUSIC_VOLUME_NORMAL}`);
                 }
             } else {
+                // ===== 播放录音 =====
                 debugLog('🎙️ 用户点击播放录音');
                 voiceLabel.textContent = '加载中...';
                 voiceBtn.disabled = true;
@@ -1065,8 +1038,10 @@
                     voiceLabel.textContent = '停止';
                     voiceBtn.classList.add('recording');
                     voiceBtn.disabled = false;
+                    // 录音播放时，背景音乐音量调小
                     if (isMusicPlaying) {
-                        bgMusic.volume = 0.12;
+                        bgMusic.volume = MUSIC_VOLUME_LOW;
+                        debugLog(`🔊 背景音乐音量降至 ${MUSIC_VOLUME_LOW}`);
                     }
                     debugLog('✅ 录音播放成功');
                 }).catch((error) => {
@@ -1078,14 +1053,17 @@
             }
         });
 
+        // ----- 录音播放结束自动恢复音乐音量 -----
         voiceRecord.addEventListener('ended', function() {
             debugLog('⏹️ 录音播放结束');
             isVoicePlaying = false;
             voiceLabel.textContent = '听录音';
             voiceBtn.classList.remove('recording');
             voiceBtn.disabled = false;
+            // 恢复音乐音量
             if (isMusicPlaying) {
-                bgMusic.volume = 0.35;
+                bgMusic.volume = MUSIC_VOLUME_NORMAL;
+                debugLog(`🔊 背景音乐音量恢复至 ${MUSIC_VOLUME_NORMAL}`);
             }
         });
 
